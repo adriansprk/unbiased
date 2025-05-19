@@ -64,16 +64,14 @@ const TurnstileWidget = forwardRef<TurnstileWidgetRef, TurnstileWidgetProps>(
         const lastTheme = useRef<string | null>(null);
         const renderInProgress = useRef<boolean>(false);
 
-        // Get the current app theme
-        const { theme: appTheme, systemTheme } = useTheme();
-
-        // Determine the actual theme (handle 'system' preference)
-        const currentAppTheme = appTheme === 'system' ? systemTheme : appTheme;
-
-        // Set widget theme based on app theme or prop override
+        // Get the current app theme - simplified to avoid waiting for theme detection
+        const { theme: appTheme } = useTheme();
+        
+        // Use dark theme as default without waiting for system detection
+        // This matches our ThemeProvider default setting
         const widgetTheme = propTheme !== 'auto'
             ? propTheme
-            : currentAppTheme === 'dark' ? 'dark' : 'light';
+            : 'dark'; // Always use dark theme by default
 
         // Use the siteKey from props or from environment variable
         const actualSiteKey = siteKey || process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY;
@@ -222,10 +220,8 @@ const TurnstileWidget = forwardRef<TurnstileWidgetRef, TurnstileWidgetProps>(
                 onLoad();
             }
 
-            // Render widget after script loads
-            setTimeout(() => {
-                renderWidget();
-            }, 100);
+            // Render widget immediately after script loads
+            renderWidget();
         }, [onLoad, renderWidget]);
 
         // Handle script error
@@ -246,27 +242,33 @@ const TurnstileWidget = forwardRef<TurnstileWidgetRef, TurnstileWidgetProps>(
             }
         }, [retryCount, isScriptLoaded, renderWidget]);
 
-        // Handle theme changes by resetting the widget
+        // Only update the widget when the app theme changes from light to dark or vice versa
+        // This prevents unnecessary resets during initial theme detection
         useEffect(() => {
-            if (!isScriptLoaded || !widgetId) {
+            if (!isScriptLoaded || !widgetId || !appTheme || appTheme === 'system') {
                 return;
             }
 
-            // Skip if the theme hasn't actually changed
-            if (lastTheme.current === widgetTheme) {
-                return;
+            // Only care about explicit theme changes by the user
+            if (appTheme === 'light' || appTheme === 'dark') {
+                const newTheme = appTheme === 'dark' ? 'dark' : 'light';
+                
+                // Skip if the theme hasn't actually changed
+                if (lastTheme.current === newTheme) {
+                    return;
+                }
+                
+                logger.debug(`[TurnstileWidget] Theme explicitly changed to ${newTheme}, updating widget`);
+                lastTheme.current = newTheme;
+                
+                // Give the widget a moment to stabilize before resetting
+                const timeoutId = setTimeout(() => {
+                    resetWidget();
+                }, 500);
+                
+                return () => clearTimeout(timeoutId);
             }
-
-            logger.debug(`[TurnstileWidget] Theme changed from ${lastTheme.current || 'none'} to ${widgetTheme}`);
-            lastTheme.current = widgetTheme;
-
-            // Give the widget a moment to stabilize before resetting
-            const timeoutId = setTimeout(() => {
-                resetWidget();
-            }, 500);
-
-            return () => clearTimeout(timeoutId);
-        }, [widgetTheme, isScriptLoaded, widgetId, resetWidget]);
+        }, [appTheme, isScriptLoaded, widgetId, resetWidget]);
 
         // Clean up on unmount
         useEffect(() => {
@@ -294,7 +296,7 @@ const TurnstileWidget = forwardRef<TurnstileWidgetRef, TurnstileWidgetProps>(
                     id="turnstile-script"
                     onLoad={handleScriptLoad}
                     onError={handleScriptError}
-                    strategy="lazyOnload"
+                    strategy="beforeInteractive" // Load as early as possible
                 />
                 <div
                     ref={containerRef}
