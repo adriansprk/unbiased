@@ -296,7 +296,7 @@ const TurnstileWidget = forwardRef<TurnstileWidgetRef, TurnstileWidgetProps>(
                     id="turnstile-script"
                     onLoad={handleScriptLoad}
                     onError={handleScriptError}
-                    strategy="beforeInteractive" // Load as early as possible
+                    strategy="afterInteractive" // Load sooner than lazyload
                 />
                 <div
                     ref={containerRef}
