@@ -44,7 +44,8 @@ const SharedAnalysisClient: React.FC<SharedAnalysisClientProps> = ({
 
     // Handle navigation to the main page
     const navigateToMainPage = () => {
-        router.push(`/${locale}`);
+        // This ensures we don't get double locale in the URL
+        router.push('/');
     };
 
     // Custom hero section with a "Try it yourself" button instead of URL input

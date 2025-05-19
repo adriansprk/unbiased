@@ -17,14 +17,16 @@ const ShareableLink: React.FC<ShareableLinkProps> = ({ jobId }) => {
     const { showToast } = useToast();
     const [copied, setCopied] = useState(false);
 
-    // Generate the shareable URL
-    const shareableUrl = `https://unbiased.adriancares.com/${locale}/analysis/${jobId}`;
+    // Generate the shareable URL with the correct path format to avoid locale duplication
+    const baseUrl = "https://unbiased.adriancares.com";
+    const shareableUrl = `${baseUrl}/${locale}/analysis/${jobId}`;
 
     // Handle copy button click
     const handleCopyClick = async () => {
         try {
             await navigator.clipboard.writeText(shareableUrl);
             setCopied(true);
+            showToast(t("copied"), { type: "success", duration: 2000 });
         } catch (error) {
             logger.error("Failed to copy link:", error);
             showToast(t("failedToCopyLink"), { type: "error", duration: 3000 });
