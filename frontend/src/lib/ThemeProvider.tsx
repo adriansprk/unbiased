@@ -16,16 +16,41 @@ export function ThemeProvider({
     ...props
 }: ThemeProviderProps) {
     return (
-        <NextThemesProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-            {...props}
-        >
-            <ThemeScript />
-            {children}
-        </NextThemesProvider>
+        <>
+            {/* Script to set dark theme as default unless user has explicitly chosen light */}
+            <script
+                dangerouslySetInnerHTML={{
+                    __html: `
+                    (function() {
+                        try {
+                            // Only use stored preference, otherwise default to dark
+                            const storedTheme = localStorage.getItem('theme');
+                            if (storedTheme === 'light') {
+                                // If user specifically chose light, don't add dark class
+                            } else {
+                                // Default to dark theme
+                                document.documentElement.classList.add('dark');
+                            }
+                        } catch (e) {
+                            // Default to dark theme on error
+                            document.documentElement.classList.add('dark');
+                        }
+                    })();
+                    `,
+                }}
+            />
+            <NextThemesProvider
+                attribute="class"
+                defaultTheme="dark" // Set default to dark instead of system
+                enableSystem={false} // Disable system preference detection
+                disableTransitionOnChange={false}
+                storageKey="theme"
+                {...props}
+            >
+                <ThemeScript />
+                {children}
+            </NextThemesProvider>
+        </>
     );
 }
 
