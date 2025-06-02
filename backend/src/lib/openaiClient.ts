@@ -111,6 +111,9 @@ export async function performAnalysisWithOpenAI(title: string, text: string, lan
   // Validate language parameter
   const validLanguage = ['en', 'de'].includes(language) ? language : 'en';
 
+  // Determine the language instruction text
+  const languageInstruction = validLanguage === 'de' ? 'German' : 'English';
+
   // Truncate text if it's too long to optimize token usage
   // Note: This truncation applies only to the article text, not to our prompt templates
   const truncatedText = text.length > MAX_CHARS ? text.substring(0, MAX_CHARS) + '...[truncated for token optimization]' : text;
@@ -350,7 +353,7 @@ Your entire output **must be a single, valid JSON object** and nothing else. Thi
 *   The final output object must contain the top-level keys \`slant\`, \`claims\`, and \`report\`.
 *   Within the \`report.bias_analysis.dimension_summaries\` object, the keys (dimension names like "Word Choice / Tone") MUST remain in English. The \`status\` value MUST be one of the exact English strings: 'Balanced', 'Caution', 'Biased', 'Unknown'.
 *   Within the \`slant\` object, the \`category\` value MUST remain one of the predefined English category names (e.g., 'Liberal/Progressive', 'Conservative', etc.).
-*   **Language Instruction:** Generate all text content (summaries, rationales, explanations) in ${validLanguage === 'de' ? 'German' : 'English'}. All JSON keys, slant category names, and dimension status labels ('Balanced', 'Caution', 'Biased', 'Unknown') MUST remain in English regardless of the response language.
+*   **Language Instruction:** Generate all text content (summaries, rationales, explanations) in ${languageInstruction}. All JSON keys, slant category names, and dimension status labels ('Balanced', 'Caution', 'Biased', 'Unknown') MUST remain in English regardless of the response language.
     `;
 
     const combinedResponse = await openai.chat.completions.create({

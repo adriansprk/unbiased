@@ -18,7 +18,7 @@ import TurnstileWidget, { TurnstileWidgetRef } from "@/components/TurnstileWidge
 import { api } from '@/lib/apiClient';
 import { useAnalysisStore } from '@/lib/store';
 import logger from "@/utils/logger";
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 
 // Form validation schema
 const formSchema = z.object({
@@ -38,6 +38,7 @@ const TURNSTILE_TOKEN_STORAGE_KEY = 'turnstile_token';
 const UrlInput: React.FC<UrlInputProps> = ({ onSubmitSuccess, isLoading: externalLoading, jobStatus, shouldResetUrlInput = false }) => {
     const t = useTranslations('UrlInput');
     const statusT = useTranslations('Status');
+    const locale = useLocale();
 
     const [error, setError] = useState<string | null>(null);
     const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
@@ -228,6 +229,9 @@ const UrlInput: React.FC<UrlInputProps> = ({ onSubmitSuccess, isLoading: externa
 
     // Handle form submission
     const onSubmit = async (values: z.infer<typeof formSchema>) => {
+        logger.debug(`[UrlInput] Form submitted with URL: ${values.url}`);
+
+        // Clear any previous errors
         setError(null);
 
         // If not in development and no token, prompt for verification.
@@ -253,10 +257,10 @@ const UrlInput: React.FC<UrlInputProps> = ({ onSubmitSuccess, isLoading: externa
             // Log the token we're about to submit for debugging
             logger.debug(`[UrlInput] Submitting URL with turnstile token (${tokenToSubmit.length} chars): ${tokenToSubmit.substring(0, 20)}...`);
 
-            // Call the API with the URL and turnstile token
+            // Call the API with the URL, current locale, and turnstile token
             const response = await api.submitUrl(
                 values.url,
-                'en',
+                locale, // Use the current locale instead of hardcoded 'en'
                 isDevelopment ? undefined : tokenToSubmit
             );
 

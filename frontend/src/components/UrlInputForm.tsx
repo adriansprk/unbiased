@@ -17,6 +17,7 @@ import {
 import { USE_MOCK_API } from '@/lib/config';
 import api from '@/lib/apiClient';
 import mockService from '@/lib/mockApiService';
+import { useLocale } from 'next-intl';
 
 // Use either the real or mock services based on configuration
 const apiService = USE_MOCK_API ? mockService.api : api;
@@ -33,6 +34,7 @@ interface UrlInputFormProps {
 const UrlInputForm: React.FC<UrlInputFormProps> = ({ onSubmitSuccess }) => {
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
+    const locale = useLocale();
 
     // Initialize form
     const form = useForm<z.infer<typeof formSchema>>({
@@ -48,12 +50,12 @@ const UrlInputForm: React.FC<UrlInputFormProps> = ({ onSubmitSuccess }) => {
         setIsLoading(true);
 
         try {
-            // Use the apiService instead of direct axios call
-            const response = await apiService.submitUrl(values.url);
+            // Use the apiService with the current locale
+            const response = await apiService.submitUrl(values.url, locale);
 
-            // Handle successful submission
-            if (response && response.jobId) {
-                onSubmitSuccess(response.jobId);
+            // Handle successful submission - access jobId from response.data
+            if (response && response.data && response.data.jobId) {
+                onSubmitSuccess(response.data.jobId);
                 form.reset(); // Clear the form
             } else {
                 setError("Invalid response from server");
