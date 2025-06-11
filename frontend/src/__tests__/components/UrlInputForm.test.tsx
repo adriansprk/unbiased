@@ -34,7 +34,8 @@ vi.mock('next-intl', () => ({
             'UrlInput.analyzing': 'Analyzing...',
         };
         return translations[key] || key;
-    }
+    },
+    useLocale: () => 'en',
 }));
 
 // Mock the lucide-react icons
@@ -116,7 +117,7 @@ describe('UrlInputForm', () => {
 
         // Wait for submission to complete
         await waitFor(() => {
-            expect(apiClient.default.submitUrl).toHaveBeenCalledWith('https://example.com/article');
+            expect(apiClient.default.submitUrl).toHaveBeenCalledWith('https://example.com/article', 'en');
         });
 
         // Mock a successful response and check if callback was called
@@ -144,7 +145,7 @@ describe('UrlInputForm', () => {
 
         // Wait for the API call to be made
         await waitFor(() => {
-            expect(apiClient.default.submitUrl).toHaveBeenCalledWith('https://example.com/article');
+            expect(apiClient.default.submitUrl).toHaveBeenCalledWith('https://example.com/article', 'en');
         });
 
         // Verify the API was called
