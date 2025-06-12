@@ -147,14 +147,47 @@ export async function fetchContentFromDiffbot(url: string): Promise<JobDetails> 
 
     while (attempt < MAX_RETRIES) {
         try {
-            // Make API request to Diffbot
+            // Log proxy configuration for debugging
+            const proxyConfig = 'de.socks.nordhold.net:1080';
+            const hasCredentials = !!(config.nordvpn.serviceUsername && config.nordvpn.servicePassword);
+            
+            logger.info(`Diffbot API call attempt ${attempt + 1}/${MAX_RETRIES}:`);
+            logger.info(`- URL: ${fetchUrl}`);
+            logger.info(`- Proxy: ${proxyConfig}`);
+            logger.info(`- Has NordVPN credentials: ${hasCredentials}`);
+            logger.info(`- Username length: ${config.nordvpn.serviceUsername?.length || 0}`);
+            
+            // Build request parameters - conditionally add proxy if credentials are available
+            const requestParams: any = {
+                url: fetchUrl,
+                token: apiKey,
+                timeout: 30000, // 30 second timeout
+            };
+            
+            // Only add proxy if we have valid credentials
+            if (hasCredentials) {
+                requestParams.proxy = proxyConfig;
+                requestParams.proxyAuth = `${config.nordvpn.serviceUsername}:${config.nordvpn.servicePassword}`;
+                logger.info('✅ Adding NordVPN proxy to request');
+            } else {
+                logger.warn('⚠️ No NordVPN credentials found, making direct request');
+            }
+            
+            // Make API request to Diffbot with NordVPN SOCKS5 proxy and anti-detection headers
             const response = await axios.get(diffbotUrl, {
-                params: {
-                    url: fetchUrl,
-                    token: apiKey,
-                    timeout: 30000, // 30 second timeout
-                },
+                params: requestParams,
+                headers: {
+                    'X-Forward-User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'X-Forward-Referrer': 'https://www.google.com/',
+                    'X-Forward-Accept-Language': 'en-US,en;q=0.9',
+                    'X-Forward-Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+                }
             });
+            
+            logger.info(`Diffbot API call successful on attempt ${attempt + 1}`);
+            logger.debug(`Response status: ${response.status}`);
+            logger.debug(`Response data keys: ${Object.keys(response.data || {}).join(', ')}`);
+            logger.debug(`Objects count: ${response.data?.objects?.length || 0}`);
 
             // Check if response contains objects
             if (!response.data || !response.data.objects || !response.data.objects.length) {
@@ -185,18 +218,31 @@ export async function fetchContentFromDiffbot(url: string): Promise<JobDetails> 
             return jobDetails;
         } catch (error) {
             attempt++;
+            
+            // Enhanced error logging for proxy debugging
+            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+            const statusCode = (error as any)?.response?.status;
+            const responseData = (error as any)?.response?.data;
+            
+            logger.error(`Diffbot API call failed (attempt ${attempt}/${MAX_RETRIES}):`);
+            logger.error(`- Error: ${errorMsg}`);
+            if (statusCode) logger.error(`- Status: ${statusCode}`);
+            if (responseData) logger.error(`- Response: ${JSON.stringify(responseData)}`);
+            
+            // Check for specific proxy-related errors
+            if (errorMsg.includes('proxy') || errorMsg.includes('SOCKS') || errorMsg.includes('authentication')) {
+                logger.error('🚨 PROXY ERROR DETECTED - Check NordVPN credentials and proxy configuration');
+            }
 
             // If we've exceeded max retries, throw the error
             if (attempt >= MAX_RETRIES) {
-                // Simplify error handling - don't check for Axios error type
-                const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-                const statusMsg = (error as any)?.response?.status ? ` (Status: ${(error as any).response.status})` : '';
-                throw new Error(`Diffbot API error: ${errorMsg}${statusMsg}`);
+                const statusMsg = statusCode ? ` (Status: ${statusCode})` : '';
+                throw new Error(`Diffbot API error after ${MAX_RETRIES} attempts: ${errorMsg}${statusMsg}`);
             }
 
             // Otherwise wait with exponential backoff before retrying
             const delayMs = BASE_DELAY * Math.pow(2, attempt - 1);
-            logger.debug(`Retrying Diffbot API call (${attempt}/${MAX_RETRIES}) after ${delayMs}ms...`);
+            logger.info(`Retrying Diffbot API call (${attempt}/${MAX_RETRIES}) after ${delayMs}ms...`);
             await new Promise(resolve => setTimeout(resolve, delayMs));
         }
     }
