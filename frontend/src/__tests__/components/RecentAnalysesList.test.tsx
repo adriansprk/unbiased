@@ -63,21 +63,13 @@ describe('RecentAnalysesList', () => {
         // Check if URLs are displayed correctly
         expect(screen.getAllByText(/example.com/)).toHaveLength(2);
 
-        // Check if relative time is displayed
-        expect(screen.getByText(/less than a minute ago/i)).toBeInTheDocument();
-        expect(screen.getByText(/about 1 hour ago/i)).toBeInTheDocument();
+        // Check if dates are displayed in the new static format
+        // Since we're using toLocaleDateString, we should see month abbreviations
+        const dateElements = screen.getAllByText(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2}\b/);
+        expect(dateElements.length).toBeGreaterThanOrEqual(2);
     });
 
-    it('applies selection styling to the selected item', () => {
-        // Mock the useEffect hook to set mounted to true immediately
-        vi.mock('react', async () => {
-            const actual = await vi.importActual('react');
-            return {
-                ...actual,
-                useState: (initial: unknown) => [true, vi.fn()], // Always return mounted as true
-            };
-        });
-
+    it('renders items with data-item-id attributes', () => {
         const { container } = render(
             <RecentAnalysesList
                 historyItems={mockHistoryItems}
@@ -85,11 +77,10 @@ describe('RecentAnalysesList', () => {
             />
         );
 
-        // Check that the first item has the data-item-id attribute with the correct value
+        // Check that items have the data-item-id attribute with the correct value
         const firstItemElement = container.querySelector('[data-item-id="job-1"]');
         expect(firstItemElement).toBeInTheDocument();
 
-        // Check that the second item has a different data-item-id
         const secondItemElement = container.querySelector('[data-item-id="job-2"]');
         expect(secondItemElement).toBeInTheDocument();
     });
