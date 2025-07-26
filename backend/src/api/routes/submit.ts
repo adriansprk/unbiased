@@ -15,9 +15,9 @@ const submitSchema = z.object({
     'cf-turnstile-response': process.env.NODE_ENV === 'development'
         ? z.string().optional() // Optional in development mode
         : z.string({
-            required_error: "Turnstile verification token is required for security validation"
+            error: "Turnstile verification token is required for security validation"
         }).min(10, {
-            message: "Invalid Turnstile token format - token too short"
+            error: "Invalid Turnstile token format - token too short"
         })
 });
 
@@ -130,10 +130,10 @@ export async function submitHandler(req: Request, res: Response) {
         const validationResult = submitSchema.safeParse(req.body);
 
         if (!validationResult.success) {
-            logger.warn('Validation error in submit endpoint:', validationResult.error.errors);
+            logger.warn('Validation error in submit endpoint:', validationResult.error.issues);
             return res.status(400).json({
                 error: 'Invalid request data',
-                details: validationResult.error.errors
+                details: validationResult.error.issues
             });
         }
 

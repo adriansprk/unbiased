@@ -155,7 +155,8 @@ describe('Submit Handler', () => {
             error: 'Invalid request data',
             details: expect.arrayContaining([
                 expect.objectContaining({
-                    validation: 'url',
+                    code: 'invalid_format',
+                    format: 'url',
                     message: 'Invalid URL format'
                 })
             ])
@@ -178,7 +179,7 @@ describe('Submit Handler', () => {
             details: expect.arrayContaining([
                 expect.objectContaining({
                     code: 'invalid_type',
-                    message: 'Required'
+                    message: expect.stringContaining('expected string, received undefined')
                 })
             ])
         });
@@ -198,8 +199,8 @@ describe('Submit Handler', () => {
             error: 'Invalid request data',
             details: expect.arrayContaining([
                 expect.objectContaining({
-                    code: 'invalid_enum_value',
-                    message: expect.stringContaining("Invalid enum value")
+                    code: 'invalid_value',
+                    message: expect.stringContaining('Invalid option')
                 })
             ])
         });

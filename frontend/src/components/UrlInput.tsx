@@ -22,7 +22,7 @@ import { useTranslations, useLocale } from 'next-intl';
 
 // Form validation schema
 const formSchema = z.object({
-    url: z.string().url({ message: "Please enter a valid URL" }),
+    url: z.string().url({ error: "Please enter a valid URL" }),
 });
 
 interface UrlInputProps {
