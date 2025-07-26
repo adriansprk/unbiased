@@ -122,10 +122,6 @@ const config = {
         apiKey: validateVar('DIFFBOT_API_KEY'),
         apiUrl: 'https://api.diffbot.com/v3',
     },
-    nordvpn: {
-        serviceUsername: process.env.NORDVPN_SERVICE_USERNAME || '',
-        servicePassword: process.env.NORDVPN_SERVICE_PASSWORD || '',
-    },
     environment: process.env.NODE_ENV || 'development',
     features: {
         reuseExistingAnalysis: validateBooleanVar('REUSE_EXISTING_ANALYSIS', false),

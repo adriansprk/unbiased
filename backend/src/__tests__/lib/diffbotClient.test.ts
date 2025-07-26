@@ -67,6 +67,12 @@ describe('Diffbot Client', () => {
                         token: 'test-api-key',
                         timeout: 30000,
                     },
+                    headers: {
+                        'X-Forward-User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'X-Forward-Referrer': 'https://www.google.com/',
+                        'X-Forward-Accept-Language': 'en-US,en;q=0.9',
+                        'X-Forward-Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+                    }
                 }
             );
 
@@ -93,6 +99,12 @@ describe('Diffbot Client', () => {
                         token: 'test-api-key',
                         timeout: 30000,
                     },
+                    headers: {
+                        'X-Forward-User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'X-Forward-Referrer': 'https://www.google.com/',
+                        'X-Forward-Accept-Language': 'en-US,en;q=0.9',
+                        'X-Forward-Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+                    }
                 }
             );
 
@@ -146,6 +158,12 @@ describe('Diffbot Client', () => {
                         token: 'test-api-key',
                         timeout: 30000,
                     },
+                    headers: {
+                        'X-Forward-User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'X-Forward-Referrer': 'https://www.google.com/',
+                        'X-Forward-Accept-Language': 'en-US,en;q=0.9',
+                        'X-Forward-Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8'
+                    }
                 }
             );
         });
@@ -197,7 +215,7 @@ describe('Diffbot Client', () => {
 
             // Call function should throw
             await expect(fetchContentFromDiffbot('https://example.com/article'))
-                .rejects.toThrow('Diffbot API error: API error');
+                .rejects.toThrow('Diffbot API error after 3 attempts: API error');
 
             // Verify axios was called MAX_RETRIES times (3)
             expect(mockAxiosGet).toHaveBeenCalledTimes(3);
