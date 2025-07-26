@@ -80,3 +80,7 @@ backend/start-with-env.sh
 # Other story files not ready for tracking
 ai/stories/archive/
 ai/stories/story-SEC-*.md
+
+# Claude
+claude.md
+.claude/
