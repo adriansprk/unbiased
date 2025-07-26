@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { HistoryItem } from "@/types/analysis";
 import { Card, CardContent } from "@/components/ui/card";
-import { formatDistanceToNow } from "date-fns";
 import { ArrowUpRight } from "lucide-react";
 import useAnalysisStore from "@/lib/store";
 
@@ -17,22 +16,21 @@ interface RecentAnalysesListProps {
  */
 const RecentAnalysesList: React.FC<RecentAnalysesListProps> = ({
     historyItems,
-    selectedJobId,
+    selectedJobId: _selectedJobId,
 }) => {
     // Get the selectHistoryItem action from the store
     const { selectHistoryItem } = useAnalysisStore();
-    // Add state for client-side rendering
-    const [mounted, setMounted] = useState(false);
 
-    // Set mounted to true after component mounts
-    useEffect(() => {
-        setMounted(true);
-    }, []);
-
-    // Format date for display
+    // Format date for display - use consistent format to avoid hydration mismatch
     const formatDate = (dateString: string) => {
         try {
-            return formatDistanceToNow(new Date(dateString), { addSuffix: true });
+            const date = new Date(dateString);
+            // Use a simpler format that doesn't change based on time passage
+            return date.toLocaleDateString(undefined, { 
+                month: 'short', 
+                day: 'numeric',
+                year: date.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined
+            });
         } catch {
             return "Unknown date";
         }
@@ -60,24 +58,12 @@ const RecentAnalysesList: React.FC<RecentAnalysesListProps> = ({
     // Use the same rendering approach for both server and client
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {historyItems.map((item) => {
-                // Calculate the selection state - but don't use it in the className yet
-                const isSelected = mounted && selectedJobId === item.id;
-
-                return (
+            {historyItems.map((item) => (
                     <Card
                         key={item.id}
                         className="cursor-pointer transition-colors hover:bg-accent/5"
                         onClick={() => selectHistoryItem(item.id)}
                     >
-                        {/* Apply selection styling with useEffect after mounting */}
-                        {mounted && isSelected && (
-                            <style jsx global>{`
-                                [data-item-id="${item.id}"] {
-                                    ring: 1px solid var(--primary);
-                                }
-                            `}</style>
-                        )}
                         <CardContent
                             className="p-4 flex flex-col h-full"
                             data-item-id={item.id}
@@ -98,8 +84,7 @@ const RecentAnalysesList: React.FC<RecentAnalysesListProps> = ({
                             </div>
                         </CardContent>
                     </Card>
-                );
-            })}
+            ))}
         </div>
     );
 };

@@ -48,7 +48,7 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
     errorMessage: null,
     analysisData: null,
     articleData: null,
-    historyItems: loadHistoryFromLocalStorage(), // Initialize with stored history
+    historyItems: [], // Start empty to avoid hydration mismatch, load in useEffect
     isLoading: false,
     hasStarted: false,
     isFadingIn: false,
