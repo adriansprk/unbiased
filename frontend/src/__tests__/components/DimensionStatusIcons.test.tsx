@@ -8,7 +8,7 @@ import { DimensionStatus } from '@/utils/biasInterpreter';
 vi.mock('@/components/ui/tooltip', () => ({
     TooltipProvider: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
     Tooltip: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-    TooltipTrigger: ({ children, asChild, ...props }: unknown) => (
+    TooltipTrigger: ({ children, asChild, ...props }: { children: React.ReactNode; asChild?: boolean; [key: string]: any }) => (
         <div {...props}>{children}</div>
     ),
     TooltipContent: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -16,11 +16,11 @@ vi.mock('@/components/ui/tooltip', () => ({
 
 describe('DimensionStatusIcons Component', () => {
     const mockDimensionStatuses: Record<string, DimensionStatus> = {
-        'Source Selection': 'Good',
+        'Source Selection': 'Balanced',
         'Fairness / Balance': 'Caution',
-        'Framing / Emphasis': 'Warning',
-        'Word Choice / Tone': 'Good',
-        'Headline / Title Bias': 'Caution',
+        'Framing / Emphasis': 'Biased',
+        'Word Choice / Tone': 'Balanced',
+        'Headline / Title Bias': 'Unknown',
     };
 
     const mockOnClick = vi.fn();

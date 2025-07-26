@@ -23,12 +23,14 @@ const DimensionStatusIcons: React.FC<DimensionStatusIconsProps> = ({
     // Helper function to get appropriate icon for each status
     const getStatusIcon = (status: DimensionStatus) => {
         switch (status) {
-            case "Good":
+            case "Balanced":
                 return <CheckCircle className="h-5 w-5 text-green-500" />;
             case "Caution":
                 return <AlertCircle className="h-5 w-5 text-yellow-500" />;
-            case "Warning":
+            case "Biased":
                 return <AlertTriangle className="h-5 w-5 text-red-500" />;
+            case "Unknown":
+                return <AlertCircle className="h-5 w-5 text-gray-500" />;
             default:
                 return null;
         }
@@ -37,12 +39,14 @@ const DimensionStatusIcons: React.FC<DimensionStatusIconsProps> = ({
     // Get status color class
     const getStatusColorClass = (status: DimensionStatus) => {
         switch (status) {
-            case "Good":
+            case "Balanced":
                 return "bg-green-50 border-green-200 hover:bg-green-100";
             case "Caution":
                 return "bg-yellow-50 border-yellow-200 hover:bg-yellow-100";
-            case "Warning":
+            case "Biased":
                 return "bg-red-50 border-red-200 hover:bg-red-100";
+            case "Unknown":
+                return "bg-gray-50 border-gray-200 hover:bg-gray-100";
             default:
                 return "bg-muted hover:bg-muted/80";
         }

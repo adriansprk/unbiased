@@ -27,6 +27,9 @@
 import { AnalysisData, BiasLevel, DimensionStatus } from "@/types/analysis";
 import logger from "@/utils/logger";
 
+// Re-export types for external use
+export type { DimensionStatus, BiasLevel } from "@/types/analysis";
+
 // Define types for extracted and validated data
 export interface BiasInterpretation {
     overallBiasLevel: BiasLevel;
