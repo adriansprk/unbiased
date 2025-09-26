@@ -168,6 +168,7 @@ export async function fetchContentFromDiffbot(url: string): Promise<JobDetails> 
                 url: fetchUrl,
                 token: apiKey,
                 timeout: 30000, // 30 second timeout
+                useProxy: 'default', // Use Diffbot's default proxy to avoid rate limiting
             };
             
             // Make API request to Diffbot with anti-detection headers
