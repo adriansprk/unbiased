@@ -96,7 +96,7 @@ vi.mock('../../lib/utils', () => ({
     isValidUuid: vi.fn().mockReturnValue(true),
     getProxiedImageUrl: vi.fn(url => `/api/image-proxy?url=${encodeURIComponent(url)}`),
     selectPreviewImage: vi.fn(images => {
-        if (!images || images.length === 0) return null;
+        if (!images || images.length === 0) {return null;}
         const primaryImage = images.find(img => img.primary);
         return primaryImage ? primaryImage.url : images[0].url;
     })

@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI } from '@google/genai';
 import config from '../config';
 import { AnalysisResults } from '../types';
 import logger from '../lib/logger';
@@ -14,89 +14,100 @@ const MAX_CHARS = 100000; // Approximately 20,000 words
 
 /**
  * Attempts to extract valid JSON from a potentially malformed response
- * 
+ *
  * @param content - The raw response content from Gemini
  * @returns Parsed JSON object or null if parsing fails
  */
 function extractJsonFromContent(content: string): any {
+  try {
+    // First try direct JSON parsing
+    return JSON.parse(content);
+  } catch {
+    // If direct parsing fails, try to clean the response
+    logger.debug('Attempting to clean JSON response...');
+
     try {
-        // First try direct JSON parsing
-        return JSON.parse(content);
-    } catch (parseError) {
-        // If direct parsing fails, try to clean the response
-        logger.debug('Attempting to clean JSON response...');
+      // Check if response contains a code block with JSON
+      const codeBlockMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (codeBlockMatch && codeBlockMatch[1]) {
+        logger.debug('Found JSON in code blocks, extracting...');
+        const jsonContent = codeBlockMatch[1].trim();
+        return JSON.parse(jsonContent);
+      }
 
-        try {
-            // Check if response contains a code block with JSON
-            const codeBlockMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-            if (codeBlockMatch && codeBlockMatch[1]) {
-                logger.debug('Found JSON in code blocks, extracting...');
-                const jsonContent = codeBlockMatch[1].trim();
-                return JSON.parse(jsonContent);
-            }
+      // Try to extract JSON object using regex
+      const objectMatch = content.match(/(\{[\s\S]*\})/);
+      if (objectMatch && objectMatch[1]) {
+        const jsonContent = objectMatch[1].trim();
+        const parsed = JSON.parse(jsonContent);
+        logger.debug('Extracted JSON object from content');
+        return parsed;
+      }
 
-            // Try to extract JSON object using regex
-            const objectMatch = content.match(/(\{[\s\S]*\})/);
-            if (objectMatch && objectMatch[1]) {
-                const jsonContent = objectMatch[1].trim();
-                const parsed = JSON.parse(jsonContent);
-                logger.debug('Extracted JSON object from content');
-                return parsed;
-            }
-
-            // Try to extract JSON array using regex
-            const arrayMatch = content.match(/(\[[\s\S]*\])/);
-            if (arrayMatch && arrayMatch[1]) {
-                const jsonContent = arrayMatch[1].trim();
-                const parsed = JSON.parse(jsonContent);
-                logger.debug('Extracted JSON array from content');
-                return parsed;
-            }
-        } catch (cleaningError) {
-            // Ignore cleaning errors and fall through to the warning
-        }
-
-        logger.warn('Could not extract valid JSON from Gemini response');
-        return null;
+      // Try to extract JSON array using regex
+      const arrayMatch = content.match(/(\[[\s\S]*\])/);
+      if (arrayMatch && arrayMatch[1]) {
+        const jsonContent = arrayMatch[1].trim();
+        const parsed = JSON.parse(jsonContent);
+        logger.debug('Extracted JSON array from content');
+        return parsed;
+      }
+    } catch {
+      // Ignore cleaning errors and fall through to the warning
     }
+
+    logger.warn('Could not extract valid JSON from Gemini response');
+    return null;
+  }
 }
 
 /**
  * Perform factual claims, bias, and slant analysis on article content using Google Gemini
- * 
+ *
  * @param title - The title of the article
  * @param text - The text content of the article
  * @param language - The language to generate the response in ('en' or 'de')
  * @returns Analysis results containing claims, report, and slant
  * @throws Error if API call fails or API key is not configured
  */
-export async function performAnalysisWithGemini(title: string, text: string, language: string = 'en'): Promise<AnalysisResults> {
-    // Ensure we have the necessary API key
-    if (!config.ai.geminiApiKey) {
-        throw new Error('Gemini API key is not configured');
-    }
+export async function performAnalysisWithGemini(
+  title: string,
+  text: string,
+  language: string = 'en'
+): Promise<AnalysisResults> {
+  // Ensure we have the necessary API key
+  if (!config.ai.geminiApiKey) {
+    throw new Error('Gemini API key is not configured');
+  }
+
+  try {
+    // Initialize the Gemini client
+    console.log(
+      `[DEBUG] Initializing GoogleGenAI with API key: ${config.ai.geminiApiKey ? '(key exists)' : '(no key)'}`
+    );
+    const genAI = new GoogleGenAI({ apiKey: config.ai.geminiApiKey });
+    console.log(`[DEBUG] GoogleGenAI type:`, typeof genAI);
+    console.log(`[DEBUG] GoogleGenAI keys:`, Object.keys(genAI));
+
+    // Validate language parameter
+    const validLanguage = ['en', 'de'].includes(language) ? language : 'en';
+
+    // Determine the language instruction text
+    const languageInstruction = validLanguage === 'de' ? 'German' : 'English';
+
+    // Truncate text if it's too long to optimize token usage
+    const truncatedText =
+      text.length > MAX_CHARS
+        ? text.substring(0, MAX_CHARS) + '...[truncated for token optimization]'
+        : text;
+
+    logger.debug(
+      `Article text length: ${text.length} characters, truncated to ${truncatedText.length} characters for analysis with language: ${validLanguage}`
+    );
 
     try {
-        // Initialize the Gemini client
-        console.log(`[DEBUG] Initializing GoogleGenAI with API key: ${config.ai.geminiApiKey ? '(key exists)' : '(no key)'}`);
-        const genAI = new GoogleGenAI({ apiKey: config.ai.geminiApiKey });
-        console.log(`[DEBUG] GoogleGenAI type:`, typeof genAI);
-        console.log(`[DEBUG] GoogleGenAI keys:`, Object.keys(genAI));
-
-        // Validate language parameter
-        const validLanguage = ['en', 'de'].includes(language) ? language : 'en';
-
-        // Determine the language instruction text
-        const languageInstruction = validLanguage === 'de' ? 'German' : 'English';
-
-        // Truncate text if it's too long to optimize token usage
-        const truncatedText = text.length > MAX_CHARS ? text.substring(0, MAX_CHARS) + '...[truncated for token optimization]' : text;
-
-        logger.debug(`Article text length: ${text.length} characters, truncated to ${truncatedText.length} characters for analysis with language: ${validLanguage}`);
-
-        try {
-            // Use a combined prompt that performs all analyses in a single API call
-            const combinedPrompt = `
+      // Use a combined prompt that performs all analyses in a single API call
+      const combinedPrompt = `
 You are a Comprehensive News Article Analyzer AI assistant. Your primary function is to meticulously analyze news articles for political slant, factual claims, and potential bias, providing a structured JSON output suitable for a media literacy tool. Accuracy, neutrality, clear sourcing, and strict adherence to the output format are paramount.
 
 **Input Article:**
@@ -330,85 +341,88 @@ Your entire output **must be a single, valid JSON object** and nothing else. Thi
 *   **Language Instruction:** Generate all text content (summaries, rationales, explanations) in ${languageInstruction}. All JSON keys, slant category names, and dimension status labels ('Balanced', 'Caution', 'Biased', 'Unknown') MUST remain in English regardless of the response language.
     `;
 
-            console.log('[DEBUG] About to call generateContent');
+      console.log('[DEBUG] About to call generateContent');
 
-            // Handle different API structures
-            let result;
-            if (genAI.models && typeof genAI.models.generateContent === 'function') {
-                // New API structure
-                result = await genAI.models.generateContent({
-                    model: config.ai.geminiModelName,
-                    contents: combinedPrompt,
-                    config: {
-                        temperature: 0.7
-                    }
-                });
-            } else if (typeof (genAI as any).getGenerativeModel === 'function') {
-                // Old API structure
-                const model = (genAI as any).getGenerativeModel({ model: config.ai.geminiModelName });
-                result = await model.generateContent({
-                    contents: [{ role: "user", parts: [{ text: combinedPrompt }] }],
-                    generationConfig: {
-                        temperature: 0.7
-                    }
-                });
-                // Extract text in the old API format
-                if (result && result.response) {
-                    result.text = result.response.text();
-                }
-            } else {
-                throw new Error('GoogleGenAI API structure not recognized');
-            }
-
-            console.log('[DEBUG] generateContent result type:', typeof result);
-            console.log('[DEBUG] generateContent result keys:', result ? Object.keys(result) : 'undefined');
-
-            // Check if response is valid
-            if (!result) {
-                throw new Error('Empty response from Gemini API');
-            }
-
-            // Extract text from response
-            const text = result.text;
-            if (!text) {
-                throw new Error('Empty text content from Gemini API');
-            }
-
-            // Parse the JSON response
-            const cleanedJSON = extractJsonFromContent(text);
-
-            if (!cleanedJSON) {
-                throw new Error('Failed to parse combined analysis response');
-            }
-
-            // Return the structured analysis results
-            return {
-                claims: cleanedJSON.claims || {},
-                report: cleanedJSON.report || {},
-                slant: cleanedJSON.slant || {}
-            };
-        } catch (error) {
-            // Handle errors with useful information
-            let errorMessage = 'Unknown error during Gemini analysis';
-
-            if (error instanceof Error) {
-                errorMessage = `Gemini API error: ${error.message}`;
-            }
-
-            logger.error(errorMessage);
-            throw new Error(errorMessage);
+      // Handle different API structures
+      let result;
+      if (genAI.models && typeof genAI.models.generateContent === 'function') {
+        // New API structure
+        result = await genAI.models.generateContent({
+          model: config.ai.geminiModelName,
+          contents: combinedPrompt,
+          config: {
+            temperature: 0.7,
+          },
+        });
+      } else if (typeof (genAI as any).getGenerativeModel === 'function') {
+        // Old API structure
+        const model = (genAI as any).getGenerativeModel({ model: config.ai.geminiModelName });
+        result = await model.generateContent({
+          contents: [{ role: 'user', parts: [{ text: combinedPrompt }] }],
+          generationConfig: {
+            temperature: 0.7,
+          },
+        });
+        // Extract text in the old API format
+        if (result && result.response) {
+          result.text = result.response.text();
         }
+      } else {
+        throw new Error('GoogleGenAI API structure not recognized');
+      }
+
+      console.log('[DEBUG] generateContent result type:', typeof result);
+      console.log(
+        '[DEBUG] generateContent result keys:',
+        result ? Object.keys(result) : 'undefined'
+      );
+
+      // Check if response is valid
+      if (!result) {
+        throw new Error('Empty response from Gemini API');
+      }
+
+      // Extract text from response
+      const text = result.text;
+      if (!text) {
+        throw new Error('Empty text content from Gemini API');
+      }
+
+      // Parse the JSON response
+      const cleanedJSON = extractJsonFromContent(text);
+
+      if (!cleanedJSON) {
+        throw new Error('Failed to parse combined analysis response');
+      }
+
+      // Return the structured analysis results
+      return {
+        claims: cleanedJSON.claims || {},
+        report: cleanedJSON.report || {},
+        slant: cleanedJSON.slant || {},
+      };
     } catch (error) {
-        // Handle errors with useful information
-        let errorMessage = 'Unknown error during Gemini analysis';
+      // Handle errors with useful information
+      let errorMessage = 'Unknown error during Gemini analysis';
 
-        if (error instanceof Error) {
-            errorMessage = `Gemini API error: ${error.message}`;
-        }
+      if (error instanceof Error) {
+        errorMessage = `Gemini API error: ${error.message}`;
+      }
 
-        logger.error(errorMessage);
-        throw new Error(errorMessage);
+      logger.error(errorMessage);
+      throw new Error(errorMessage);
     }
+  } catch (error) {
+    // Handle errors with useful information
+    let errorMessage = 'Unknown error during Gemini analysis';
+
+    if (error instanceof Error) {
+      errorMessage = `Gemini API error: ${error.message}`;
+    }
+
+    logger.error(errorMessage);
+    throw new Error(errorMessage);
+  }
 }
 
-export default { performAnalysisWithGemini }; 
+export default { performAnalysisWithGemini };

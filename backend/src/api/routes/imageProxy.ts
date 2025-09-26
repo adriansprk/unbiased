@@ -45,7 +45,7 @@ export default async function imageProxyHandler(req: Request, res: Response) {
         // Validate URL format
         try {
             new URL(url);
-        } catch (error) {
+        } catch {
             return res.status(400).json({
                 success: false,
                 error: {
@@ -74,7 +74,7 @@ export default async function imageProxyHandler(req: Request, res: Response) {
         });
 
         // Check if the response is an image
-        const contentType = imageResponse.headers['content-type'];
+        const contentType = imageResponse.headers['content-type'] as string;
         if (!contentType || !VALID_IMAGE_TYPES.includes(contentType.toLowerCase())) {
             logger.warn(`Invalid content type: ${contentType} for URL: ${url}`);
             return res.status(400).json({
@@ -86,7 +86,7 @@ export default async function imageProxyHandler(req: Request, res: Response) {
             });
         }
 
-        logger.debug(`Fetched image: ${contentType}, size: ${imageResponse.data.byteLength} bytes`);
+        logger.debug(`Fetched image: ${contentType}, size: ${(imageResponse.data as ArrayBuffer).byteLength} bytes`);
 
         try {
             // Process the image with sharp
@@ -108,7 +108,7 @@ export default async function imageProxyHandler(req: Request, res: Response) {
             // If image processing fails, fall back to original image
             res.setHeader('Content-Type', contentType);
             res.setHeader('Cache-Control', CACHE_CONTROL_VALUE);
-            return res.send(Buffer.from(imageResponse.data));
+            return res.send(Buffer.from(imageResponse.data as ArrayBuffer));
         }
     } catch (error) {
         logger.error('Image proxy error:', error);

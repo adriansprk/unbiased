@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
-import { v4 as uuidv4 } from 'uuid';
 import axios from 'axios';
 import { jobsRepository } from '../../db/jobsRepository';
 import { addAnalysisJob } from '../../queues/analysisQueue';
@@ -28,7 +27,7 @@ export function isValidUrl(url: string): boolean {
     try {
         const parsedUrl = new URL(url);
         return parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:';
-    } catch (error) {
+    } catch {
         return false;
     }
 }
@@ -86,7 +85,7 @@ async function verifyTurnstileToken(token: string, ip?: string): Promise<{ succe
             }
         );
 
-        const { success, 'error-codes': errorCodes } = verifyResponse.data;
+        const { success, 'error-codes': errorCodes } = verifyResponse.data as { success: boolean; 'error-codes'?: string[] };
 
         // Log the verification response
         logger.debug('Turnstile verification response:', { success, errorCodes });

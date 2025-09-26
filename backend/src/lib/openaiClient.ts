@@ -11,7 +11,7 @@ const MAX_RETRIES = 3;
 /**
  * Base delay (in ms) for exponential backoff
  */
-const BASE_DELAY = 1000;
+// const BASE_DELAY = 1000;
 
 /**
  * Maximum characters to send to OpenAI for analysis
@@ -27,26 +27,32 @@ const openai = new OpenAI({
 
 /**
  * Safely extracts content from OpenAI response, providing fallback value if structure is invalid
- * 
+ *
  * @param response - The response from OpenAI API
  * @param fallback - Fallback value to return if content cannot be extracted
  * @returns Content string or fallback value
  */
 function safelyExtractContent(response: any, fallback: string): string {
-  if (!response) return fallback;
+  if (!response) {
+    return fallback;
+  }
 
   const choices = response.choices || [];
-  if (choices.length === 0) return fallback;
+  if (choices.length === 0) {
+    return fallback;
+  }
 
   const message = choices[0]?.message;
-  if (!message) return fallback;
+  if (!message) {
+    return fallback;
+  }
 
   return message.content || fallback;
 }
 
 /**
  * Attempts to extract valid JSON from a potentially malformed response
- * 
+ *
  * @param content - The raw response content from OpenAI
  * @returns Parsed JSON object or null if parsing fails
  */
@@ -54,7 +60,7 @@ function extractJsonFromContent(content: string): any {
   try {
     // First try direct JSON parsing
     return JSON.parse(content);
-  } catch (parseError) {
+  } catch {
     // If direct parsing fails, try to clean the response
     logger.debug('Attempting to clean JSON response...');
 
@@ -84,7 +90,7 @@ function extractJsonFromContent(content: string): any {
         logger.debug('Extracted JSON array from content');
         return parsed;
       }
-    } catch (cleaningError) {
+    } catch {
       // Ignore cleaning errors and fall through to the warning
     }
 
@@ -95,14 +101,18 @@ function extractJsonFromContent(content: string): any {
 
 /**
  * Perform factual claims, bias, and slant analysis on article content using OpenAI
- * 
+ *
  * @param title - The title of the article
  * @param text - The text content of the article
  * @param language - The language to generate the response in ('en' or 'de')
  * @returns Analysis results containing claims, report, and slant
  * @throws Error if API call fails after retries
  */
-export async function performAnalysisWithOpenAI(title: string, text: string, language: string = 'en'): Promise<AnalysisResults> {
+export async function performAnalysisWithOpenAI(
+  title: string,
+  text: string,
+  language: string = 'en'
+): Promise<AnalysisResults> {
   // Ensure we have the necessary API key
   if (!config.ai.openaiApiKey) {
     throw new Error('OpenAI API key is not configured');
@@ -116,9 +126,14 @@ export async function performAnalysisWithOpenAI(title: string, text: string, lan
 
   // Truncate text if it's too long to optimize token usage
   // Note: This truncation applies only to the article text, not to our prompt templates
-  const truncatedText = text.length > MAX_CHARS ? text.substring(0, MAX_CHARS) + '...[truncated for token optimization]' : text;
+  const truncatedText =
+    text.length > MAX_CHARS
+      ? text.substring(0, MAX_CHARS) + '...[truncated for token optimization]'
+      : text;
 
-  logger.debug(`Article text length: ${text.length} characters, truncated to ${truncatedText.length} characters for analysis with language: ${validLanguage}`);
+  logger.debug(
+    `Article text length: ${text.length} characters, truncated to ${truncatedText.length} characters for analysis with language: ${validLanguage}`
+  );
 
   try {
     // Use a combined prompt that performs all analyses in a single API call
@@ -372,9 +387,9 @@ Your entire output **must be a single, valid JSON object** and nothing else. Thi
       return {
         claims: parsedResults.claims || {},
         report: parsedResults.report || {},
-        slant: parsedResults.slant || {}
+        slant: parsedResults.slant || {},
       };
-    } catch (parseError) {
+    } catch {
       const errorMessage = `OpenAI API error: Failed to parse combined analysis response - ${parseError instanceof Error ? parseError.message : 'Unknown error'}`;
       logger.error(errorMessage);
       throw new Error(errorMessage);
@@ -392,4 +407,4 @@ Your entire output **must be a single, valid JSON object** and nothing else. Thi
   }
 }
 
-export default { performAnalysisWithOpenAI }; 
+export default { performAnalysisWithOpenAI };

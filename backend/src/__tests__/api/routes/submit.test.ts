@@ -102,7 +102,7 @@ describe('Submit Handler', () => {
         // Reset mocks and configure default behavior
         vi.clearAllMocks();
         (utils.normalizeUrl as any).mockImplementation(url => {
-            if (url === originalUrl) return normalizedUrl;
+            if (url === originalUrl) {return normalizedUrl;}
             return url;
         });
 

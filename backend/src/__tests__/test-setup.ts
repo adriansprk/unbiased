@@ -10,4 +10,4 @@ process.env.IMAGE_PROXY_SECRET = 'test-image-proxy-secret';
 process.env.NODE_ENV = 'test';
 
 // This ensures environment variables are set before any tests run
-// Add other global test setup code here as needed 
+// Add other global test setup code here as needed

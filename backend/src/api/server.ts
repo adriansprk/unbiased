@@ -27,91 +27,91 @@ const socketManager = new SocketManager(server);
 
 // Middleware
 app.use(express.json());
-app.use(cors({
+app.use(
+  cors({
     origin: config.api.frontendUrl,
-    credentials: true
-}));
+    credentials: true,
+  })
+);
 
 // Routes
 app.get('/api/health', (req, res) => {
-    res.status(200).json({ status: 'ok', message: 'API server is running' });
+  res.status(200).json({ status: 'ok', message: 'API server is running' });
 });
 
 /**
  * Image proxy endpoint
  * Fetches, optionally optimizes, and serves external images
  */
-app.get('/api/image-proxy', imageProxyHandler);
+app.get('/api/image-proxy', (req, res) => void imageProxyHandler(req, res));
 
 /**
  * Submit a new URL for analysis
  */
-app.post('/api/submit', submitHandler);
+app.post('/api/submit', (req, res) => void submitHandler(req, res));
 
 /**
  * Get results of a completed job
  * This endpoint is optimized for retrieving the full analysis results
  * and should only be called for completed jobs
  */
-app.get('/api/results/:jobId', resultsHandler);
+app.get('/api/results/:jobId', (req, res) => void resultsHandler(req, res));
 
 /**
  * Get status of a specific job
  */
-app.get('/api/status/:jobId', getStatusByJobId);
+app.get('/api/status/:jobId', (req, res) => void getStatusByJobId(req, res));
 
 /**
  * Get history of completed jobs
  */
-app.get('/api/history', getHistory);
+app.get('/api/history', (req, res) => void getHistory(req, res));
 
 /**
  * Debug endpoint to get raw job data for troubleshooting
  */
-app.get('/api/debug/:jobId', async (req, res) => {
+app.get('/api/debug/:jobId', (req, res) => {
+  void (async () => {
     try {
-        const { jobId } = req.params;
+      const { jobId } = req.params;
 
-        // Validate UUID format
-        if (!isValidUuid(jobId)) {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid job ID format'
-            });
-        }
-
-        // Get raw job from database
-        const { data, error } = await supabase
-            .from('jobs')
-            .select('*')
-            .eq('id', jobId)
-            .single();
-
-        if (error) {
-            return res.status(500).json({
-                success: false,
-                error: error.message
-            });
-        }
-
-        // Return the raw job data for debugging
-        res.status(200).json({
-            success: true,
-            data
+      // Validate UUID format
+      if (!isValidUuid(jobId)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid job ID format',
         });
+      }
+
+      // Get raw job from database
+      const { data, error } = await supabase.from('jobs').select('*').eq('id', jobId).single();
+
+      if (error) {
+        return res.status(500).json({
+          success: false,
+          error: error.message,
+        });
+      }
+
+      // Return the raw job data for debugging
+      res.status(200).json({
+        success: true,
+        data,
+      });
     } catch (err) {
-        logger.error('Error in debug endpoint:', err);
-        res.status(500).json({
-            success: false,
-            error: 'Internal server error'
-        });
+      logger.error('Error in debug endpoint:', err);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+      });
     }
+  })();
 });
 
 // Start server
 const PORT = config.api.port;
 server.listen(PORT, () => {
-    logger.info(`Server running on port ${PORT}`);
+  logger.info(`Server running on port ${PORT}`);
 });
 
-export { app, server, socketManager }; 
+export { app, server, socketManager };

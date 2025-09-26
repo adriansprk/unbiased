@@ -3,11 +3,7 @@
  */
 
 // Redis client exports
-export {
-    redisClient,
-    emitSocketUpdate,
-    createRedisClient
-} from './redisClient';
+export { redisClient, emitSocketUpdate, createRedisClient } from './redisClient';
 
 // Socket manager export
 export { default as SocketManager } from './socketManager';
@@ -19,9 +15,4 @@ export { fetchContentFromDiffbot } from './diffbotClient';
 export { performAnalysisWithOpenAI } from './openaiClient';
 
 // Utility exports
-export {
-    isValidUuid,
-    generateId,
-    formatDate,
-    safeJsonParse
-} from './utils'; 
+export { isValidUuid, generateId, formatDate, safeJsonParse } from './utils';
