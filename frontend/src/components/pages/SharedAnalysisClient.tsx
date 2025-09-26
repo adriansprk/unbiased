@@ -17,7 +17,7 @@ interface SharedAnalysisClientProps {
 
 const SharedAnalysisClient: React.FC<SharedAnalysisClientProps> = ({
     jobId,
-    locale
+    locale: _locale
 }) => {
     const t = useTranslations("SharedAnalysis");
     const router = useRouter();
