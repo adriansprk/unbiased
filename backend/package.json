@@ -35,7 +35,7 @@
   "license": "ISC",
   "type": "commonjs",
   "engines": {
-    "node": ">=20 <25",
+    "node": ">=23 <25",
     "npm": ">=10"
   },
   "devDependencies": {
