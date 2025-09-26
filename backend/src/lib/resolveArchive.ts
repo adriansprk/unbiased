@@ -1,4 +1,4 @@
-import cheerio from 'cheerio';
+import * as cheerio from 'cheerio';
 import { setTimeout as delay } from 'timers/promises';
 import logger from './logger';
 
