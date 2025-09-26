@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import config from '../config';
-import { AnalysisResults } from '../types';
+import { AnalysisResults, OpenAIResponse } from '../types';
 import logger from '../lib/logger';
 
 /**
@@ -32,7 +32,7 @@ const openai = new OpenAI({
  * @param fallback - Fallback value to return if content cannot be extracted
  * @returns Content string or fallback value
  */
-function safelyExtractContent(response: any, fallback: string): string {
+function safelyExtractContent(response: OpenAIResponse, fallback: string): string {
   if (!response) {
     return fallback;
   }
@@ -56,10 +56,10 @@ function safelyExtractContent(response: any, fallback: string): string {
  * @param content - The raw response content from OpenAI
  * @returns Parsed JSON object or null if parsing fails
  */
-function extractJsonFromContent(content: string): any {
+function extractJsonFromContent(content: string): AnalysisResults | null {
   try {
     // First try direct JSON parsing
-    return JSON.parse(content);
+    return JSON.parse(content) as AnalysisResults;
   } catch {
     // If direct parsing fails, try to clean the response
     logger.debug('Attempting to clean JSON response...');
@@ -70,14 +70,14 @@ function extractJsonFromContent(content: string): any {
       if (codeBlockMatch && codeBlockMatch[1]) {
         logger.debug('Found JSON in code blocks, extracting...');
         const jsonContent = codeBlockMatch[1].trim();
-        return JSON.parse(jsonContent);
+        return JSON.parse(jsonContent) as AnalysisResults;
       }
 
       // Try to extract JSON object using regex
       const objectMatch = content.match(/(\{[\s\S]*\})/);
       if (objectMatch && objectMatch[1]) {
         const jsonContent = objectMatch[1].trim();
-        const parsed = JSON.parse(jsonContent);
+        const parsed = JSON.parse(jsonContent) as AnalysisResults;
         logger.debug('Extracted JSON object from content');
         return parsed;
       }
@@ -86,7 +86,7 @@ function extractJsonFromContent(content: string): any {
       const arrayMatch = content.match(/(\[[\s\S]*\])/);
       if (arrayMatch && arrayMatch[1]) {
         const jsonContent = arrayMatch[1].trim();
-        const parsed = JSON.parse(jsonContent);
+        const parsed = JSON.parse(jsonContent) as AnalysisResults;
         logger.debug('Extracted JSON array from content');
         return parsed;
       }
@@ -385,11 +385,11 @@ Your entire output **must be a single, valid JSON object** and nothing else. Thi
       const parsedResults = cleanedJSON;
 
       return {
-        claims: parsedResults.claims || {},
-        report: parsedResults.report || {},
-        slant: parsedResults.slant || {},
+        claims: parsedResults?.claims || '',
+        report: parsedResults?.report || '',
+        slant: parsedResults?.slant || '',
       };
-    } catch {
+    } catch (parseError) {
       const errorMessage = `OpenAI API error: Failed to parse combined analysis response - ${parseError instanceof Error ? parseError.message : 'Unknown error'}`;
       logger.error(errorMessage);
       throw new Error(errorMessage);

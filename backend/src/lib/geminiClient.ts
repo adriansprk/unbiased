@@ -4,7 +4,7 @@ import { AnalysisResults } from '../types';
 import logger from '../lib/logger';
 
 // Debug top level to ensure this runs when imported
-console.log('[GEMINI-DEBUG] Module loaded, GoogleGenAI =', typeof GoogleGenAI);
+logger.debug('[GEMINI-DEBUG] Module loaded, GoogleGenAI =', typeof GoogleGenAI);
 
 /**
  * Maximum characters to send to Gemini for analysis
@@ -18,7 +18,7 @@ const MAX_CHARS = 100000; // Approximately 20,000 words
  * @param content - The raw response content from Gemini
  * @returns Parsed JSON object or null if parsing fails
  */
-function extractJsonFromContent(content: string): any {
+function extractJsonFromContent(content: string): unknown {
   try {
     // First try direct JSON parsing
     return JSON.parse(content);
@@ -39,7 +39,7 @@ function extractJsonFromContent(content: string): any {
       const objectMatch = content.match(/(\{[\s\S]*\})/);
       if (objectMatch && objectMatch[1]) {
         const jsonContent = objectMatch[1].trim();
-        const parsed = JSON.parse(jsonContent);
+        const parsed = JSON.parse(jsonContent) as unknown;
         logger.debug('Extracted JSON object from content');
         return parsed;
       }
@@ -48,7 +48,7 @@ function extractJsonFromContent(content: string): any {
       const arrayMatch = content.match(/(\[[\s\S]*\])/);
       if (arrayMatch && arrayMatch[1]) {
         const jsonContent = arrayMatch[1].trim();
-        const parsed = JSON.parse(jsonContent);
+        const parsed = JSON.parse(jsonContent) as unknown;
         logger.debug('Extracted JSON array from content');
         return parsed;
       }
@@ -82,12 +82,12 @@ export async function performAnalysisWithGemini(
 
   try {
     // Initialize the Gemini client
-    console.log(
+    logger.debug(
       `[DEBUG] Initializing GoogleGenAI with API key: ${config.ai.geminiApiKey ? '(key exists)' : '(no key)'}`
     );
     const genAI = new GoogleGenAI({ apiKey: config.ai.geminiApiKey });
-    console.log(`[DEBUG] GoogleGenAI type:`, typeof genAI);
-    console.log(`[DEBUG] GoogleGenAI keys:`, Object.keys(genAI));
+    logger.debug(`[DEBUG] GoogleGenAI type:`, typeof genAI);
+    logger.debug(`[DEBUG] GoogleGenAI keys:`, Object.keys(genAI));
 
     // Validate language parameter
     const validLanguage = ['en', 'de'].includes(language) ? language : 'en';
@@ -341,7 +341,7 @@ Your entire output **must be a single, valid JSON object** and nothing else. Thi
 *   **Language Instruction:** Generate all text content (summaries, rationales, explanations) in ${languageInstruction}. All JSON keys, slant category names, and dimension status labels ('Balanced', 'Caution', 'Biased', 'Unknown') MUST remain in English regardless of the response language.
     `;
 
-      console.log('[DEBUG] About to call generateContent');
+      logger.debug('[DEBUG] About to call generateContent');
 
       // Handle different API structures
       let result;
@@ -354,9 +354,9 @@ Your entire output **must be a single, valid JSON object** and nothing else. Thi
             temperature: 0.7,
           },
         });
-      } else if (typeof (genAI as any).getGenerativeModel === 'function') {
+      } else if (typeof (genAI as unknown as { getGenerativeModel?: unknown }).getGenerativeModel === 'function') {
         // Old API structure
-        const model = (genAI as any).getGenerativeModel({ model: config.ai.geminiModelName });
+        const model = (genAI as unknown as { getGenerativeModel: (config: { model: string }) => { generateContent: (options: unknown) => Promise<{ response: { text: () => string } }> } }).getGenerativeModel({ model: config.ai.geminiModelName });
         result = await model.generateContent({
           contents: [{ role: 'user', parts: [{ text: combinedPrompt }] }],
           generationConfig: {
@@ -365,14 +365,14 @@ Your entire output **must be a single, valid JSON object** and nothing else. Thi
         });
         // Extract text in the old API format
         if (result && result.response) {
-          result.text = result.response.text();
+          (result as unknown as { text: string }).text = result.response.text();
         }
       } else {
         throw new Error('GoogleGenAI API structure not recognized');
       }
 
-      console.log('[DEBUG] generateContent result type:', typeof result);
-      console.log(
+      logger.debug('[DEBUG] generateContent result type:', typeof result);
+      logger.debug(
         '[DEBUG] generateContent result keys:',
         result ? Object.keys(result) : 'undefined'
       );
@@ -383,13 +383,13 @@ Your entire output **must be a single, valid JSON object** and nothing else. Thi
       }
 
       // Extract text from response
-      const text = result.text;
+      const text = (result as { text?: string }).text;
       if (!text) {
         throw new Error('Empty text content from Gemini API');
       }
 
       // Parse the JSON response
-      const cleanedJSON = extractJsonFromContent(text);
+      const cleanedJSON = extractJsonFromContent(text) as { claims?: string; report?: string; slant?: string } | null;
 
       if (!cleanedJSON) {
         throw new Error('Failed to parse combined analysis response');
@@ -397,9 +397,9 @@ Your entire output **must be a single, valid JSON object** and nothing else. Thi
 
       // Return the structured analysis results
       return {
-        claims: cleanedJSON.claims || {},
-        report: cleanedJSON.report || {},
-        slant: cleanedJSON.slant || {},
+        claims: cleanedJSON.claims || '',
+        report: cleanedJSON.report || '',
+        slant: cleanedJSON.slant || '',
       };
     } catch (error) {
       // Handle errors with useful information

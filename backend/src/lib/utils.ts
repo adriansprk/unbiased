@@ -1,5 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import config, { proactiveArchiveDomains } from '../config';
+import { ImageDetails, DiffbotArticleObject, MinimalJobMetadata } from '../types';
+import logger from './logger';
 
 /**
  * Validates if a string is a valid UUID
@@ -75,7 +77,7 @@ export function normalizeUrl(url: string): string {
 
     return parsedUrl.toString();
   } catch (error) {
-    console.error('Error normalizing URL:', error);
+    logger.error('Error normalizing URL:', error);
     return url; // Return original URL if normalization fails
   }
 }
@@ -115,7 +117,7 @@ export function safeJsonParse<T>(jsonString: string, fallback: T): T {
   try {
     return JSON.parse(jsonString) as T;
   } catch (error) {
-    console.error('Error parsing JSON:', error);
+    logger.error('Error parsing JSON:', error);
     return fallback;
   }
 }
@@ -150,7 +152,7 @@ export function isDomainOnProactiveList(domain: string): boolean {
  * @param imagesArray - Array of image objects from Diffbot
  * @returns The URL of the selected image, or null if no suitable image is found
  */
-export function selectPreviewImage(imagesArray: any[] | null | undefined): string | null {
+export function selectPreviewImage(imagesArray: ImageDetails[] | null | undefined): string | null {
   // Handle empty or invalid input
   if (!imagesArray || !Array.isArray(imagesArray) || imagesArray.length === 0) {
     return null;
@@ -190,28 +192,29 @@ export function selectPreviewImage(imagesArray: any[] | null | undefined): strin
  * @param diffbotOutput - The original Diffbot API response
  * @returns A filtered object containing only the necessary metadata
  */
-export function createMinimalMetadata(diffbotOutput: any): object {
+export function createMinimalMetadata(diffbotOutput: DiffbotArticleObject): MinimalJobMetadata {
   if (!diffbotOutput) {
     return {};
   }
 
-  // Create a shallow copy of the diffbot output
-  const metadata = { ...diffbotOutput };
+  // Create a minimal metadata object with only essential fields
+  const metadata: MinimalJobMetadata = {
+    type: diffbotOutput.type,
+    publisherCountry: diffbotOutput.publisherCountry,
+    publisherRegion: diffbotOutput.publisherRegion,
+    language: diffbotOutput.language,
+    sentiment: diffbotOutput.sentiment,
+    humanLanguage: diffbotOutput.humanLanguage,
+    numPages: diffbotOutput.numPages,
+    diffbotUri: diffbotOutput.diffbotUri,
+  };
 
-  // Explicitly remove fields we don't want to store in job_details
-  delete metadata.html;
-  delete metadata.text;
-  delete metadata.images;
-
-  // Keep other potentially useful fields
-  // Common diffbot fields we might want to keep include:
-  // - tags
-  // - type (article, product, etc.)
-  // - publisherCountry
-  // - language
-  // - sentiment
-  // - estimatedDate
-  // - humanLanguage
+  // Remove undefined values
+  Object.keys(metadata).forEach(key => {
+    if (metadata[key as keyof MinimalJobMetadata] === undefined) {
+      delete metadata[key as keyof MinimalJobMetadata];
+    }
+  });
 
   return metadata;
 }

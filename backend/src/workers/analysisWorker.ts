@@ -3,7 +3,7 @@ import { Worker, Job, WorkerOptions } from 'bullmq';
 import { validateEnv } from '../config/envValidator';
 import config from '../config';
 import { jobsRepository } from '../db/jobsRepository';
-import { JobStatus, JobUpdatePayload, AnalysisResults, AnalysisJobData, ErrorType } from '../types';
+import { JobStatus, JobUpdatePayload, AnalysisResults, AnalysisJobData, ErrorType, JobDetails, ImageDetails, DiffbotArticleObject } from '../types';
 import { redisClient, emitSocketUpdate } from '../lib';
 import { fetchContentFromDiffbot } from '../lib/diffbotClient';
 import { performAnalysisWithOpenAI } from '../lib/openaiClient';
@@ -69,7 +69,7 @@ validateEnv();
 export async function updateJobStatus(
   jobId: string,
   status: JobStatus,
-  details?: any
+  details?: JobDetails | AnalysisResults | { error: string }
 ): Promise<void> {
   try {
     // Update job status in database
@@ -84,9 +84,10 @@ export async function updateJobStatus(
     // Add results or error if provided
     if (details) {
       if (status === 'Complete') {
-        updatePayload.results = details;
+        updatePayload.results = details as AnalysisResults;
       } else if (status === 'Failed') {
-        updatePayload.error = details.error || 'Unknown error';
+        const errorDetails = details as { error: string };
+        updatePayload.error = errorDetails.error || 'Unknown error';
       }
     }
 
@@ -268,7 +269,7 @@ const worker = new Worker(
               siteName: extractedContent.siteName,
               images: extractedContent.images,
               imageDetails: extractedContent.images
-                ? extractedContent.images.map((img: any) => ({
+                ? extractedContent.images.map((img: ImageDetails) => ({
                     url: img.url,
                     primary: img.primary,
                     width: img.width,
@@ -323,7 +324,7 @@ const worker = new Worker(
         };
 
         // Create minimal metadata JSON
-        const minimalMetadata = createMinimalMetadata(extractedContent);
+        const minimalMetadata = createMinimalMetadata(extractedContent as DiffbotArticleObject);
 
         // Save extracted content to dedicated columns and minimal metadata to job_details
         await jobsRepository.saveExtractedArticleContent(jobId, articleData, minimalMetadata);
@@ -546,16 +547,17 @@ if (process.env.NODE_ENV !== 'test') {
 
     // Additional attempt to mark the job as failed in the database
     // This is a safety net in case the job processor didn't handle the error
-    if (job?.data?.jobId) {
-      markJobAsFailed(job.data.jobId as string, error.message, ErrorType.INTERNAL).catch(e =>
+    const jobData = job?.data as AnalysisJobData | undefined;
+    if (jobData?.jobId) {
+      markJobAsFailed(jobData.jobId, error.message, ErrorType.INTERNAL).catch(e =>
         logger.error(
-          `Critical error: Failed final attempt to mark job ${job.data.jobId} as failed:`,
+          `Critical error: Failed final attempt to mark job ${jobData.jobId} as failed:`,
           e
         )
       );
     } else {
       logger.error(
-        `Critical error during failure handling for job ${job?.data?.jobId as string || 'unknown'}:`,
+        `Critical error during failure handling for job ${jobData?.jobId || 'unknown'}:`,
         error
       );
     }
@@ -565,15 +567,15 @@ if (process.env.NODE_ENV !== 'test') {
     logger.error('Worker error:', error);
   });
 
-  worker.on('active', job => {
+  worker.on('active', (job: Job) => {
     logger.info(`Job ${job.id} has started processing`);
   });
 
-  worker.on('stalled', jobId => {
+  worker.on('stalled', (jobId: string) => {
     logger.error(`Job ${jobId} has been stalled - possible worker crash`);
   });
 
-  worker.on('progress', (job, progress) => {
+  worker.on('progress', (job: Job, progress: unknown) => {
     logger.info(`Job ${job.id} reported progress: ${JSON.stringify(progress)}`);
   });
 }

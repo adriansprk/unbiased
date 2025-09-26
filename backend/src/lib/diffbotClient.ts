@@ -1,6 +1,6 @@
 import axios from 'axios';
 import config from '../config';
-import { JobDetails } from '../types';
+import { JobDetails, DiffbotResponse, DiffbotArticleObject, ImageDetails } from '../types';
 import { extractDomain, isDomainOnProactiveList } from './utils';
 import { resolveArchiveSnapshot } from './resolveArchive';
 import logger from '../lib/logger';
@@ -22,7 +22,7 @@ const BASE_DELAY = 1000;
  * @param isArchiveIs - Whether the content was fetched via Archive.is
  * @returns Processed array of image objects
  */
-function processImages(images: any[] = [], isArchiveIs: boolean): any[] {
+function processImages(images: ImageDetails[] = [], isArchiveIs: boolean): ImageDetails[] {
   if (!isArchiveIs || !images || !images.length) {
     return images;
   }
@@ -178,7 +178,7 @@ export async function fetchContentFromDiffbot(url: string): Promise<JobDetails> 
       logger.info(`- URL: ${fetchUrl}`);
 
       // Build request parameters
-      const requestParams: any = {
+      const requestParams: Record<string, string | number> = {
         url: fetchUrl,
         token: apiKey,
         timeout: 30000, // 30 second timeout
@@ -186,7 +186,7 @@ export async function fetchContentFromDiffbot(url: string): Promise<JobDetails> 
       };
 
       // Make API request to Diffbot with anti-detection headers
-      const response = await axios.get(diffbotUrl, {
+      const response = await axios.get<DiffbotResponse>(diffbotUrl, {
         params: requestParams,
         headers: {
           'X-Forward-User-Agent':
@@ -209,10 +209,10 @@ export async function fetchContentFromDiffbot(url: string): Promise<JobDetails> 
       }
 
       // Extract the first article object
-      const article = response.data.objects[0];
+      const article: DiffbotArticleObject = response.data.objects[0];
 
       // Process images if the content was fetched via Archive.is
-      const processedImages = processImages(article.images, isArchiveIsFetch);
+      const processedImages = processImages(article.images || [], isArchiveIsFetch);
 
       // Create JobDetails object with extracted content
       const jobDetails: JobDetails = {
@@ -223,10 +223,28 @@ export async function fetchContentFromDiffbot(url: string): Promise<JobDetails> 
         date: article.date || null,
         siteName: article.siteName || null,
         images: processedImages,
-        url: article.url || originalUrl, // Use canonical URL if available
+        url: article.url || originalUrl,
+        canonicalUrl: article.canonicalUrl || undefined,
+        publisherCountry: article.publisherCountry || undefined,
+        publisherRegion: article.publisherRegion || undefined,
+        language: article.language || undefined,
+        sentiment: article.sentiment || undefined,
+        diffbotUri: article.diffbotUri || undefined,
+        type: article.type || undefined,
+        resolvedPageUrl: article.resolvedPageUrl || undefined,
+        pageUrl: article.pageUrl || undefined,
+        humanLanguage: article.humanLanguage || undefined,
+        numPages: article.numPages || undefined,
+        nextPages: article.nextPages || undefined,
+        nextPage: article.nextPage || undefined,
+        tags: article.tags || undefined,
+        entities: article.entities || undefined,
+        breadcrumb: article.breadcrumb || undefined,
+        videos: article.videos || undefined,
+        links: article.links || undefined,
         fetchStrategy: isArchiveIsFetch ? 'archive.is' : 'direct',
         originalUrl: originalUrl,
-        isArchiveContent: isArchiveIsFetch, // Add flag for frontend to know this came from Archive.is
+        isArchiveContent: isArchiveIsFetch,
       };
 
       return jobDetails;
@@ -235,8 +253,9 @@ export async function fetchContentFromDiffbot(url: string): Promise<JobDetails> 
 
       // Enhanced error logging for proxy debugging
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      const statusCode = (error as any)?.response?.status;
-      const responseData = (error as any)?.response?.data;
+      const axiosError = axios.isAxiosError(error) ? error : null;
+      const statusCode = axiosError?.response?.status;
+      const responseData = axiosError?.response?.data as unknown;
 
       logger.error(`Diffbot API call failed (attempt ${attempt}/${MAX_RETRIES}):`);
       logger.error(`- Error: ${errorMsg}`);
@@ -256,7 +275,7 @@ export async function fetchContentFromDiffbot(url: string): Promise<JobDetails> 
       // Otherwise wait with exponential backoff before retrying
       const delayMs = BASE_DELAY * Math.pow(2, attempt - 1);
       logger.info(`Retrying Diffbot API call (${attempt}/${MAX_RETRIES}) after ${delayMs}ms...`);
-      await new Promise(resolve => setTimeout(resolve, delayMs));
+      await new Promise((resolve: (value: unknown) => void) => setTimeout(resolve, delayMs));
     }
   }
 

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { jobsRepository } from '../../db/jobsRepository';
-import { ErrorResponse } from '../../types';
+import { ErrorResponse, HistoryItem } from '../../types';
 import logger from '../../lib/logger';
 import { getProxiedImageUrl, selectPreviewImage } from '../../lib/utils';
 
@@ -12,23 +12,26 @@ export async function getHistory(req: Request, res: Response): Promise<void> {
         const history = await jobsRepository.getJobHistory();
 
         // Process each history item to ensure consistent data structure
-        const processedHistory = history.map(item => {
+        const processedHistory = history.map((item: HistoryItem) => {
+            // Create a mutable copy to avoid TypeScript issues
+            const processedItem = { ...item } as HistoryItem & { headline?: string };
+
             // Prioritize article_title over headline from job_details->title
-            if (item.article_title) {
-                item.headline = item.article_title;
+            if (processedItem.article_title) {
+                processedItem.headline = processedItem.article_title;
             }
 
             // Handle preview image URL
-            if (item.article_preview_image_url) {
-                item.article_preview_image_url = getProxiedImageUrl(item.article_preview_image_url);
-            } else if (item.job_details && item.job_details.images) {
-                const imageUrl = selectPreviewImage(item.job_details.images);
+            if (processedItem.article_preview_image_url) {
+                processedItem.article_preview_image_url = getProxiedImageUrl(processedItem.article_preview_image_url);
+            } else if (processedItem.job_details && processedItem.job_details.images) {
+                const imageUrl = selectPreviewImage(processedItem.job_details.images);
                 if (imageUrl) {
-                    item.article_preview_image_url = getProxiedImageUrl(imageUrl);
+                    processedItem.article_preview_image_url = getProxiedImageUrl(imageUrl);
                 }
             }
 
-            return item;
+            return processedItem;
         });
 
         res.status(200).json(processedHistory);

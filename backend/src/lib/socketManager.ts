@@ -3,6 +3,7 @@ import { Server as HttpServer } from 'http';
 import config from '../config';
 import { JobUpdatePayload, SocketSubscribePayload } from '../types';
 import { createRedisClient } from './index';
+import logger from './logger';
 
 /**
  * Socket.IO manager for handling real-time updates
@@ -31,7 +32,7 @@ export class SocketManager {
 
     // Log when server is ready
     this.io.on('connection', socket => {
-      console.log(
+      logger.info(
         `New socket connection: ${socket.id}, total connections: ${this.io.engine.clientsCount}`
       );
     });
@@ -42,13 +43,13 @@ export class SocketManager {
    */
   private setupSocketEvents() {
     this.io.on('connection', socket => {
-      console.log('Client connected:', socket.id);
+      logger.info('Client connected:', socket.id);
 
       // Initialize client's subscription set
       this.clientSubscriptions.set(socket.id, new Set());
 
       socket.on('disconnect', reason => {
-        console.log(`Client disconnected: ${socket.id}, reason: ${reason}`);
+        logger.info(`Client disconnected: ${socket.id}, reason: ${reason}`);
         // Clean up subscription tracking
         this.clientSubscriptions.delete(socket.id);
       });
@@ -62,8 +63,8 @@ export class SocketManager {
         clientSubs.add(data.jobId);
         this.clientSubscriptions.set(socket.id, clientSubs);
 
-        console.log(`Client ${socket.id} subscribed to job: ${data.jobId}`);
-        console.log(`Client ${socket.id} is now subscribed to jobs:`, [...clientSubs]);
+        logger.info(`Client ${socket.id} subscribed to job: ${data.jobId}`);
+        logger.debug(`Client ${socket.id} is now subscribed to jobs:`, [...clientSubs]);
 
         // Notify client that they have successfully joined the room
         socket.emit('joined', {
@@ -74,13 +75,13 @@ export class SocketManager {
 
         // Get rooms this socket is in
         const rooms = Array.from(socket.rooms.values()).filter(r => r !== socket.id);
-        console.log(`Socket ${socket.id} is now in rooms:`, rooms);
+        logger.debug(`Socket ${socket.id} is now in rooms:`, rooms);
       });
 
       socket.on('unsubscribeFromJob', () => {
         // Get rooms this socket is in before leaving
         const rooms = Array.from(socket.rooms.values()).filter(r => r !== socket.id);
-        console.log(`Client ${socket.id} unsubscribing from rooms:`, rooms);
+        logger.info(`Client ${socket.id} unsubscribing from rooms:`, rooms);
 
         // Leave all rooms except the socket's own room
         rooms.forEach(room => {
@@ -90,7 +91,7 @@ export class SocketManager {
         // Clear subscription tracking for this client
         this.clientSubscriptions.set(socket.id, new Set());
 
-        console.log(`Client ${socket.id} left all job rooms`);
+        logger.info(`Client ${socket.id} left all job rooms`);
       });
 
       // Add a handler for the checkSubscription event
@@ -103,7 +104,7 @@ export class SocketManager {
         const clientSubs = this.clientSubscriptions.get(socket.id) || new Set();
         const isTrackedSubscription = clientSubs.has(data.jobId);
 
-        console.log(`Subscription check for job ${data.jobId}:`, {
+        logger.debug(`Subscription check for job ${data.jobId}:`, {
           socketId: socket.id,
           isInRoom,
           isTrackedSubscription,
@@ -126,7 +127,7 @@ export class SocketManager {
           clientSubs.add(data.jobId);
           this.clientSubscriptions.set(socket.id, clientSubs);
 
-          console.log(`Re-subscribed client ${socket.id} to job: ${data.jobId}`);
+          logger.info(`Re-subscribed client ${socket.id} to job: ${data.jobId}`);
           socket.emit('joined', {
             jobId: data.jobId,
             room: jobRoom,
@@ -146,14 +147,14 @@ export class SocketManager {
     this.subscriber.on('message', (channel, message) => {
       if (channel === 'job-updates') {
         try {
-          const update: JobUpdatePayload = JSON.parse(message);
+          const update: JobUpdatePayload = JSON.parse(message) as JobUpdatePayload;
           const room = `job_${update.jobId}`;
 
           // Get how many clients are in this room
           const socketsInRoom = this.io.sockets.adapter.rooms.get(room);
           const clientCount = socketsInRoom ? socketsInRoom.size : 0;
 
-          console.log(`Emitting update to room ${room}:`, {
+          logger.debug(`Emitting update to room ${room}:`, {
             status: update.status,
             clientCount,
             timestamp: new Date().toISOString(),
@@ -161,12 +162,12 @@ export class SocketManager {
 
           // If there are no clients in the room, log a warning
           if (clientCount === 0) {
-            console.warn(`No clients in room ${room} to receive update for job ${update.jobId}`);
+            logger.warn(`No clients in room ${room} to receive update for job ${update.jobId}`);
           }
 
           this.io.to(room).emit('jobUpdate', update);
         } catch (error) {
-          console.error('Error processing job update message:', error);
+          logger.error('Error processing job update message:', error);
         }
       }
     });
@@ -182,7 +183,7 @@ export class SocketManager {
     const socketsInRoom = this.io.sockets.adapter.rooms.get(room);
     const clientCount = socketsInRoom ? socketsInRoom.size : 0;
 
-    console.log(`Manually emitting update to room ${room}:`, {
+    logger.debug(`Manually emitting update to room ${room}:`, {
       status: update.status,
       clientCount,
       timestamp: new Date().toISOString(),

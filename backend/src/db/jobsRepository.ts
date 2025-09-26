@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import { Job, JobStatus, JobDetails, AnalysisResults } from '../types';
+import { Job, JobStatus, JobDetails, AnalysisResults, ImageDetails, ExtractedArticleData, MinimalJobMetadata, HistoryItem } from '../types';
 import { getProxiedImageUrl, normalizeUrl } from '../lib/utils';
 import logger from '../lib/logger';
 
@@ -13,7 +13,7 @@ function transformToProxiedImageUrls(details: JobDetails): JobDetails {
 
   // Transform image URLs in the images array
   if (updatedDetails.images && Array.isArray(updatedDetails.images)) {
-    updatedDetails.images = updatedDetails.images.map(image => {
+    updatedDetails.images = updatedDetails.images.map((image: ImageDetails) => {
       // Handle Archive.is images (where url is null but originalUrl contains the Archive.is URL)
       if (image && image.isArchiveImage && image.originalUrl) {
         return {
@@ -33,7 +33,7 @@ function transformToProxiedImageUrls(details: JobDetails): JobDetails {
   }
 
   // Transform the main image URL if present
-  if (updatedDetails.imageUrl) {
+  if ('imageUrl' in updatedDetails && typeof updatedDetails.imageUrl === 'string') {
     updatedDetails.imageUrl = getProxiedImageUrl(updatedDetails.imageUrl);
   }
 
@@ -43,7 +43,7 @@ function transformToProxiedImageUrls(details: JobDetails): JobDetails {
     // A more robust approach would be to use a proper HTML parser
     updatedDetails.html = updatedDetails.html.replace(
       /<img[^>]+src="([^"]+)"/g,
-      (match, imgUrl) => {
+      (match: string, imgUrl: string) => {
         const proxiedUrl = getProxiedImageUrl(imgUrl);
         return match.replace(imgUrl, proxiedUrl);
       }
@@ -72,7 +72,7 @@ export const jobsRepository = {
       // If normalizedUrl is not provided, normalize the URL
       const normalized = normalizedUrl || normalizeUrl(url);
 
-      const { data, error } = await supabase
+      const result = await supabase
         .from('jobs')
         .insert({
           url,
@@ -81,6 +81,9 @@ export const jobsRepository = {
         })
         .select()
         .single();
+
+      const data = result.data as Job | null;
+      const error = result.error;
 
       if (error) {
         throw new Error(`Database error creating job: ${error.message}`);
@@ -150,7 +153,7 @@ export const jobsRepository = {
 
       // Transform image URLs in job_details to use the proxy
       if (data.job_details) {
-        data.job_details = transformToProxiedImageUrls(data.job_details);
+        data.job_details = transformToProxiedImageUrls(data.job_details as JobDetails);
       }
 
       return data;
@@ -163,27 +166,30 @@ export const jobsRepository = {
   /**
    * Update job status in the database
    */
-  async updateJobStatus(jobId: string, status: JobStatus, details?: any): Promise<Job> {
+  async updateJobStatus(jobId: string, status: JobStatus, details?: JobDetails | AnalysisResults | { error: string }): Promise<Job> {
     try {
-      const updateData: any = { status };
+      const updateData: Partial<Job> = { status };
 
       if (details) {
         if (status === 'Complete') {
-          updateData.analysis_results = details;
+          updateData.analysis_results = details as AnalysisResults;
         } else if (status === 'Failed') {
-          updateData.error_message = details.error || 'Unknown error';
+          const errorDetails = details as { error: string };
+          updateData.error_message = errorDetails.error || 'Unknown error';
         } else {
           // Transform image URLs in job_details to use the proxy before storing
-          updateData.job_details = transformToProxiedImageUrls(details);
+          updateData.job_details = transformToProxiedImageUrls(details as JobDetails);
         }
       }
 
-      const { data, error } = await supabase
+      const result = await supabase
         .from('jobs')
         .update(updateData)
         .eq('id', jobId)
         .select()
         .single();
+
+      const { data, error } = result as { data: Job | null; error: { message: string } | null };
 
       if (error) {
         throw new Error(`Database error updating job status: ${error.message}`);
@@ -218,7 +224,7 @@ export const jobsRepository = {
     try {
       logger.warn(`Marking job ${jobId} as failed with error: ${errorMessage}`);
 
-      const { data, error } = await supabase
+      const result = await supabase
         .from('jobs')
         .update({
           status: 'Failed',
@@ -228,6 +234,8 @@ export const jobsRepository = {
         .eq('id', jobId)
         .select()
         .single();
+
+      const { data, error } = result as { data: Job | null; error: { message: string } | null };
 
       if (error) {
         throw new Error(`Database error marking job as failed: ${error.message}`);
@@ -267,7 +275,7 @@ export const jobsRepository = {
     try {
       logger.info(`Marking job ${jobId} as complete with results`);
 
-      const { data, error } = await supabase
+      const result = await supabase
         .from('jobs')
         .update({
           status: 'Complete',
@@ -277,6 +285,8 @@ export const jobsRepository = {
         .eq('id', jobId)
         .select()
         .single();
+
+      const { data, error } = result as { data: Job | null; error: { message: string } | null };
 
       if (error) {
         throw new Error(`Database error marking job as complete: ${error.message}`);
@@ -308,12 +318,14 @@ export const jobsRepository = {
       // Transform image URLs in job_details to use the proxy before storing
       const transformedDetails = transformToProxiedImageUrls(details);
 
-      const { data, error } = await supabase
+      const result = await supabase
         .from('jobs')
         .update({ job_details: transformedDetails })
         .eq('id', jobId)
         .select()
         .single();
+
+      const { data, error } = result as { data: Job | null; error: { message: string } | null };
 
       if (error) {
         throw new Error(`Database error updating job details: ${error.message}`);
@@ -340,16 +352,8 @@ export const jobsRepository = {
    */
   async saveExtractedArticleContent(
     jobId: string,
-    articleData: {
-      article_title: string | null;
-      article_text: string | null;
-      article_author: string | null;
-      article_source_name: string | null;
-      article_canonical_url: string | null;
-      article_preview_image_url: string | null;
-      article_publication_date: string | null;
-    },
-    minimalMetadata: object
+    articleData: ExtractedArticleData,
+    minimalMetadata: MinimalJobMetadata
   ): Promise<Job> {
     try {
       logger.info(`Saving extracted article content for job ${jobId}`);
@@ -361,7 +365,7 @@ export const jobsRepository = {
         );
       }
 
-      const { data, error } = await supabase
+      const result = await supabase
         .from('jobs')
         .update({
           // Dedicated columns for article data
@@ -382,6 +386,8 @@ export const jobsRepository = {
         .eq('id', jobId)
         .select()
         .single();
+
+      const { data, error } = result as { data: Job | null; error: { message: string } | null };
 
       if (error) {
         throw new Error(`Database error saving article content: ${error.message}`);
@@ -426,8 +432,8 @@ export const jobsRepository = {
       }
 
       return {
-        article_title: data.article_title,
-        article_text: data.article_text,
+        article_title: data.article_title as string,
+        article_text: data.article_text as string,
       };
     } catch (error) {
       logger.error(`Error retrieving article content for job ${jobId}:`, error);
@@ -438,17 +444,17 @@ export const jobsRepository = {
   /**
    * Get recent job history
    */
-  async getJobHistory(limit = 50): Promise<any[]> {
+  async getJobHistory(limit = 50): Promise<HistoryItem[]> {
     try {
       const { data, error } = await supabase
         .from('jobs')
         .select(
           `
-                    id, 
-                    url, 
-                    status, 
-                    job_details->title as headline, 
-                    analysis_results->slant as slant, 
+                    id,
+                    url,
+                    status,
+                    job_details->title as headline,
+                    analysis_results->slant as slant,
                     article_title,
                     article_preview_image_url,
                     job_details,
@@ -461,7 +467,7 @@ export const jobsRepository = {
       if (error) {
         throw new Error(`Database error retrieving job history: ${error.message}`);
       }
-      return data || [];
+      return (data as unknown as HistoryItem[]) || [];
     } catch (error) {
       logger.error('Error retrieving job history:', error);
       throw error;
@@ -479,7 +485,7 @@ export const jobsRepository = {
     language: string
   ): Promise<Job | null> {
     try {
-      const { data, error } = await supabase
+      const result = await supabase
         .from('jobs')
         .select('*')
         .eq('normalized_url', normalizedUrl)
@@ -488,6 +494,8 @@ export const jobsRepository = {
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
+
+      const { data, error } = result as { data: Job | null; error: { message: string } | null };
 
       if (error) {
         throw new Error(`Database error finding job: ${error.message}`);

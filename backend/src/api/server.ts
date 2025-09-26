@@ -12,6 +12,7 @@ import { getHistory } from './routes/history';
 import { supabase } from '../db/supabaseClient';
 import logger from '../lib/logger';
 import { isValidUuid } from '../lib/utils';
+import { Job } from '../types';
 
 // Validate environment variables
 validateEnv();
@@ -84,7 +85,9 @@ app.get('/api/debug/:jobId', (req, res) => {
       }
 
       // Get raw job from database
-      const { data, error } = await supabase.from('jobs').select('*').eq('id', jobId).single();
+      const result = await supabase.from('jobs').select('*').eq('id', jobId).single();
+      const data = result.data as Job | null;
+      const error = result.error;
 
       if (error) {
         return res.status(500).json({

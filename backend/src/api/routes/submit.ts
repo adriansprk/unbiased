@@ -85,7 +85,8 @@ async function verifyTurnstileToken(token: string, ip?: string): Promise<{ succe
             }
         );
 
-        const { success, 'error-codes': errorCodes } = verifyResponse.data as { success: boolean; 'error-codes'?: string[] };
+        const responseData = verifyResponse.data as { success: boolean; 'error-codes'?: string[] };
+        const { success, 'error-codes': errorCodes } = responseData;
 
         // Log the verification response
         logger.debug('Turnstile verification response:', { success, errorCodes });
@@ -199,8 +200,7 @@ export async function submitHandler(req: Request, res: Response) {
                     article_canonical_url: fullJobDetails.article_canonical_url ||
                         (fullJobDetails.job_details?.url || fullJobDetails.url || null),
                     article_preview_image_url: fullJobDetails.article_preview_image_url ||
-                        (fullJobDetails.job_details?.imageUrl ||
-                            (fullJobDetails.job_details?.images?.[0]?.url || null)),
+                        (fullJobDetails.job_details?.images?.[0]?.url || null),
                     article_publication_date: fullJobDetails.article_publication_date ||
                         (fullJobDetails.job_details?.date || null),
                     // Optional: Include article_text only if not too large

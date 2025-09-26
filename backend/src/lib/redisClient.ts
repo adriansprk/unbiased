@@ -1,6 +1,7 @@
 import Redis from 'ioredis';
 import { validateVar } from '../config/envValidator';
 import { JobUpdatePayload, JobStatus } from '../types';
+import logger from './logger';
 
 // Create Redis client for publishing updates
 export const redisClient = new Redis(
@@ -30,9 +31,9 @@ export async function emitSocketUpdate(
 
     // Publish to Redis
     await redisClient.publish('job-updates', JSON.stringify(updatePayload));
-    console.log(`Socket update emitted for job ${jobId}: ${updatePayload.status}`);
+    logger.info(`Socket update emitted for job ${jobId}: ${updatePayload.status}`);
   } catch (error) {
-    console.error(`Error emitting socket update for job ${jobId}:`, error);
+    logger.error(`Error emitting socket update for job ${jobId}:`, error);
     throw error;
   }
 }
