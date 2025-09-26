@@ -2,6 +2,7 @@ import axios from 'axios';
 import config from '../config';
 import { JobDetails } from '../types';
 import { extractDomain, isDomainOnProactiveList } from './utils';
+import { resolveArchiveSnapshot } from './resolveArchive';
 import logger from '../lib/logger';
 
 /**
@@ -130,10 +131,22 @@ export async function fetchContentFromDiffbot(url: string): Promise<JobDetails> 
 
         if (useArchiveIs) {
             const cleanUrl = stripQueryParams(url);
-            fetchUrl = `https://archive.is/newest/${encodeURIComponent(cleanUrl)}`;
-            isArchiveIsFetch = true;
-            logger.info(`Domain ${domain} is on proactive list. Using Archive.is with cleaned URL: ${fetchUrl}`);
-            logger.debug(`Original URL: ${url}, Cleaned URL: ${cleanUrl}`);
+            logger.info(`Domain ${domain} is on proactive list. Attempting to resolve archive snapshot for: ${cleanUrl}`);
+
+            // Try to resolve the archive snapshot URL
+            const resolvedArchiveUrl = await resolveArchiveSnapshot(cleanUrl);
+
+            if (resolvedArchiveUrl) {
+                fetchUrl = resolvedArchiveUrl;
+                isArchiveIsFetch = true;
+                logger.info(`Using resolved archive snapshot: ${fetchUrl}`);
+                logger.debug(`Original URL: ${url}, Cleaned URL: ${cleanUrl}, Resolved URL: ${fetchUrl}`);
+            } else {
+                // Fallback to direct URL if archive resolution fails
+                fetchUrl = url;
+                isArchiveIsFetch = false;
+                logger.warn(`Archive snapshot resolution failed for ${cleanUrl}, falling back to direct URL: ${fetchUrl}`);
+            }
         } else {
             fetchUrl = url;
             logger.info(`Using original URL: ${fetchUrl}`);

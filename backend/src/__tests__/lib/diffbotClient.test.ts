@@ -2,11 +2,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fetchContentFromDiffbot, ensureBackwardCompatibility } from '../../lib/diffbotClient';
 import axios from 'axios';
 import * as utils from '../../lib/utils';
+import * as resolveArchive from '../../lib/resolveArchive';
 import { JobDetails } from '../../types';
 
 // Mock dependencies
 vi.mock('axios');
 vi.mock('../../lib/utils');
+vi.mock('../../lib/resolveArchive');
 vi.mock('../../config', () => ({
     default: {
         diffbot: {
@@ -23,6 +25,7 @@ describe('Diffbot Client', () => {
     const mockAxiosGet = vi.mocked(axios.get);
     const mockExtractDomain = vi.mocked(utils.extractDomain);
     const mockIsDomainOnProactiveList = vi.mocked(utils.isDomainOnProactiveList);
+    const mockResolveArchiveSnapshot = vi.mocked(resolveArchive.resolveArchiveSnapshot);
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -52,18 +55,23 @@ describe('Diffbot Client', () => {
         it('should use Archive.is URL for domains on the proactive list', async () => {
             // Set up mocks
             const originalUrl = 'https://www.nytimes.com/article?param=value';
+            const resolvedArchiveUrl = 'https://archive.ph/mzm6W';
             mockExtractDomain.mockReturnValue('www.nytimes.com');
             mockIsDomainOnProactiveList.mockReturnValue(true);
+            mockResolveArchiveSnapshot.mockResolvedValue(resolvedArchiveUrl);
 
             // Call function
             await fetchContentFromDiffbot(originalUrl);
 
-            // Verify Archive.is URL was constructed correctly with cleaned URL (no query params)
+            // Verify resolveArchiveSnapshot was called with cleaned URL (no query params)
+            expect(mockResolveArchiveSnapshot).toHaveBeenCalledWith('https://www.nytimes.com/article');
+
+            // Verify resolved Archive.is URL was used
             expect(mockAxiosGet).toHaveBeenCalledWith(
                 'https://api.diffbot.com/v3/article',
                 {
                     params: {
-                        url: `https://archive.is/newest/${encodeURIComponent('https://www.nytimes.com/article')}`,
+                        url: resolvedArchiveUrl,
                         token: 'test-api-key',
                         timeout: 30000,
                     },
@@ -117,6 +125,7 @@ describe('Diffbot Client', () => {
             // Set up mocks
             mockExtractDomain.mockReturnValue('www.nytimes.com');
             mockIsDomainOnProactiveList.mockReturnValue(true);
+            mockResolveArchiveSnapshot.mockResolvedValue('https://archive.ph/mzm6W');
 
             // Call function
             const result = await fetchContentFromDiffbot('https://www.nytimes.com/article');
@@ -124,6 +133,34 @@ describe('Diffbot Client', () => {
             // Verify fetchStrategy flag
             expect(result.fetchStrategy).toBe('archive.is');
             expect(result.isArchiveContent).toBe(true);
+        });
+
+        it('should fall back to direct URL when archive resolution fails', async () => {
+            // Set up mocks
+            const originalUrl = 'https://www.nytimes.com/article';
+            mockExtractDomain.mockReturnValue('www.nytimes.com');
+            mockIsDomainOnProactiveList.mockReturnValue(true);
+            mockResolveArchiveSnapshot.mockResolvedValue(null); // Archive resolution fails
+
+            // Call function
+            const result = await fetchContentFromDiffbot(originalUrl);
+
+            // Verify archive resolution was attempted
+            expect(mockResolveArchiveSnapshot).toHaveBeenCalledWith(originalUrl);
+
+            // Verify fallback to direct URL
+            expect(mockAxiosGet).toHaveBeenCalledWith(
+                'https://api.diffbot.com/v3/article',
+                expect.objectContaining({
+                    params: expect.objectContaining({
+                        url: originalUrl
+                    })
+                })
+            );
+
+            // Verify fetchStrategy is set to direct since archive failed
+            expect(result.fetchStrategy).toBe('direct');
+            expect(result.isArchiveContent).toBe(false);
         });
 
         it('should set fetchStrategy to "direct" when using original URL', async () => {
@@ -227,6 +264,7 @@ describe('Diffbot Client', () => {
             // Set up mocks
             mockExtractDomain.mockReturnValue('www.nytimes.com');
             mockIsDomainOnProactiveList.mockReturnValue(true);
+            mockResolveArchiveSnapshot.mockResolvedValue('https://archive.ph/mzm6W');
 
             // Add archive.is images to response
             mockAxiosGet.mockResolvedValue({
