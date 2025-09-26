@@ -1,4 +1,4 @@
-import * as cheerio from "cheerio";
+import cheerio from "cheerio";
 import { setTimeout as delay } from "timers/promises";
 import logger from './logger';
 
@@ -67,8 +67,8 @@ export async function resolveArchiveSnapshot(originalUrl: string): Promise<strin
 
       // Prefer raw short-code links
       const candidates: string[] = [];
-      $("a[href]").each((_, a) => {
-        const href = ($(a).attr("href") || "").trim();
+      $("a[href]").each((index: number, element: cheerio.Element) => {
+        const href = ($(element).attr("href") || "").trim();
         if (SHORT_RE.test(href)) {
           candidates.push(absolute(host, href));
         }
