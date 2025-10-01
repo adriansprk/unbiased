@@ -27,8 +27,6 @@ Unbias allows users to submit a URL of an online article. The backend fetches th
 *   🔗 **Shareable Analysis Links:** Users can copy and share unique URLs for completed analyses, allowing anyone to view the results without needing to re-analyze.
 *   🔒 **Cloudflare Turnstile Integration:** Implements robust bot protection with a seamless human verification flow that adapts to the site's theme and persists verification across language changes.
 *   ⚙️ **Efficient Analysis Reuse:** (Configurable via an environment variable) The system intelligently checks if an article (based on its normalized URL and requested language) has already been analyzed and, if so, serves the existing results to save processing time and costs.
-*   💾 **Optimized Database Storage:** Essential article content such as the title, main text (for LLM analysis), and preview image URL are stored in dedicated database columns, while bulky HTML is discarded, significantly reducing storage requirements.
-*   🎨 **Publication Carousel:** Features a scrolling carousel of major news publication logos to inspire users and showcase supported sources.
 
 ## Data Flow & Analysis Process
 
