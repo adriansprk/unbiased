@@ -277,10 +277,10 @@ const worker = new Worker(
               useFirecrawl = true;
               finalUrl = archiveUrl;
             } else {
-              // Archive resolution failed, fall back to Diffbot with original URL
-              logger.warn(`Archive resolution failed for ${domain}. Falling back to Diffbot with original URL.`);
+              // Archive resolution failed, fall back to Diffbot with cleaned URL (no query params)
+              logger.warn(`Archive resolution failed for ${domain}. Falling back to Diffbot with cleaned URL.`);
               useFirecrawl = false;
-              finalUrl = url;
+              finalUrl = cleanUrl;
             }
           }
         }

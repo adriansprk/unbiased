@@ -1,8 +1,6 @@
 import axios from 'axios';
 import config from '../config';
 import { JobDetails, DiffbotResponse, DiffbotArticleObject, ImageDetails } from '../types';
-import { extractDomain, isDomainOnProactiveList } from './utils';
-import { resolveArchiveSnapshot } from './resolveArchive';
 import logger from '../lib/logger';
 
 /**
@@ -95,24 +93,6 @@ export function ensureBackwardCompatibility(jobDetails: JobDetails): JobDetails 
 }
 
 /**
- * Strips query parameters from a URL for better archive.is compatibility
- *
- * @param url - The URL to clean
- * @returns URL without query parameters
- */
-function stripQueryParams(url: string): string {
-  try {
-    const urlObj = new URL(url);
-    return `${urlObj.protocol}//${urlObj.host}${urlObj.pathname}`;
-  } catch (error) {
-    logger.warn(
-      `Error stripping query params: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-    return url; // Return original URL if parsing fails
-  }
-}
-
-/**
  * Fetches article content from Diffbot API
  *
  * @param url - The URL of the article to extract content from
@@ -128,47 +108,12 @@ export async function fetchContentFromDiffbot(url: string): Promise<JobDetails> 
     throw new Error('Diffbot API key is not configured');
   }
 
-  // Check if domain requires Archive.is fetching
-  let fetchUrl: string;
+  // Archive resolution is now handled by the worker, so Diffbot just uses the URL it receives
+  const fetchUrl = url;
   const originalUrl = url;
-  let isArchiveIsFetch = false;
+  const isArchiveIsFetch = false; // Diffbot is only used for direct fetching now
 
-  try {
-    const domain = extractDomain(url);
-    const useArchiveIs = isDomainOnProactiveList(domain);
-
-    if (useArchiveIs) {
-      const cleanUrl = stripQueryParams(url);
-      logger.info(
-        `Domain ${domain} is on proactive list. Attempting to resolve archive snapshot for: ${cleanUrl}`
-      );
-
-      // Try to resolve the archive snapshot URL
-      const resolvedArchiveUrl = await resolveArchiveSnapshot(cleanUrl);
-
-      if (resolvedArchiveUrl) {
-        fetchUrl = resolvedArchiveUrl;
-        isArchiveIsFetch = true;
-        logger.info(`Using resolved archive snapshot: ${fetchUrl}`);
-        logger.debug(`Original URL: ${url}, Cleaned URL: ${cleanUrl}, Resolved URL: ${fetchUrl}`);
-      } else {
-        // Fallback to direct URL if archive resolution fails
-        fetchUrl = url;
-        isArchiveIsFetch = false;
-        logger.warn(
-          `Archive snapshot resolution failed for ${cleanUrl}, falling back to direct URL: ${fetchUrl}`
-        );
-      }
-    } else {
-      fetchUrl = url;
-      logger.info(`Using original URL: ${fetchUrl}`);
-    }
-  } catch (error) {
-    logger.warn(
-      `Error checking domain for Archive.is strategy: ${error instanceof Error ? error.message : 'Unknown error'}`
-    );
-    fetchUrl = url; // Fallback to original URL on error
-  }
+  logger.info(`Fetching with Diffbot from: ${fetchUrl}`);
 
   let attempt = 0;
 
