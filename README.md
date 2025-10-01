@@ -3,11 +3,11 @@
 [![Next.js](https://img.shields.io/badge/Next.js-15.4.4-black?style=flat-square&logo=next.js&logoColor=white)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.x-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
-[![Node.js](https://img.shields.io/badge/Node.js-20.x-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-22.x-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 [![Express.js](https://img.shields.io/badge/Express.js-4.x-lightgrey?style=flat-square&logo=express)](https://expressjs.com/)
 [![Supabase](https://img.shields.io/badge/Supabase-gray?style=flat-square&logo=supabase&logoColor=green)](https://supabase.io/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
-[![Live](https://img.shields.io/badge/Live-unbiased.adriancares.com-brightgreen?style=flat-square)](https://unbiased.adriancares.com)
+[![Live](https://img.shields.io/badge/Live-unbias.app-brightgreen?style=flat-square)](https://unbias.app)
 
 A web application that analyzes online articles for bias, factual claims, and perspective using AI.
 
@@ -15,7 +15,7 @@ A web application that analyzes online articles for bias, factual claims, and pe
 
 ## Project Overview
 
-Unbias allows users to submit a URL of an online article. The backend fetches the article's content, analyzes it using OpenAI's language models for factual claims, bias, and perspective ("slant"), and displays the results. The system handles concurrent requests reliably using a background job queue and provides real-time status updates.
+Unbias allows users to submit a URL of an online article. The backend fetches the article's content, analyzes it using Google's Gemini or OpenAI's language models for factual claims, bias, and perspective ("slant"), and displays the results. The system handles concurrent requests reliably using a background job queue and provides real-time status updates.
 
 **Key Features Include:**
 
@@ -28,6 +28,7 @@ Unbias allows users to submit a URL of an online article. The backend fetches th
 *   🔒 **Cloudflare Turnstile Integration:** Implements robust bot protection with a seamless human verification flow that adapts to the site's theme and persists verification across language changes.
 *   ⚙️ **Efficient Analysis Reuse:** (Configurable via an environment variable) The system intelligently checks if an article (based on its normalized URL and requested language) has already been analyzed and, if so, serves the existing results to save processing time and costs.
 *   💾 **Optimized Database Storage:** Essential article content such as the title, main text (for LLM analysis), and preview image URL are stored in dedicated database columns, while bulky HTML is discarded, significantly reducing storage requirements.
+*   🎨 **Publication Carousel:** Features a scrolling carousel of major news publication logos to inspire users and showcase supported sources.
 
 ## Data Flow & Analysis Process
 
@@ -63,8 +64,8 @@ Unbias allows users to submit a URL of an online article. The backend fetches th
         *   Stores other minimal, non-bulky Diffbot metadata into the `job_details` JSONB column (full HTML is no longer stored here).
     *   Updates job status to 'Analyzing' (DB + WebSocket).
     *   Retrieves `article_title` and `article_text` from the database.
-    *   Sends these to OpenAI API for analysis.
-    *   Stores `analysis_results` (slant, claims, bias report) from OpenAI in the DB.
+    *   Sends these to Google Gemini API (primary) or OpenAI API (fallback) for analysis.
+    *   Stores `analysis_results` (slant, claims, bias report) from the AI model in the DB.
     *   Updates job status to 'Complete' (DB + WebSocket, including `analysis_results`).
     *   If any step fails, updates job status to 'Failed' with an error message.
 5.  **Frontend (Receiving Updates/Results):**
@@ -110,7 +111,7 @@ graph LR
         Worker -->|"Store Optimized Article Data (New Columns + Min. job_details)"| DB
         Worker -->|"Get Title/Text for LLM"| DB
         DB -->|"Title/Text"| Worker
-        Worker -->|"Analyze (OpenAI)"| ExtService_AI["External Services: OpenAI"]
+        Worker -->|"Analyze (Gemini/OpenAI)"| ExtService_AI["External Services: Gemini/OpenAI"]
         Worker -->|"Store Analysis Results"| DB
         Worker -->|"Status Updates"| RedisPubSub["Redis Pub/Sub"]
         RedisPubSub -->|"Job Updates"| API
@@ -136,9 +137,9 @@ graph LR
 
 The application follows a distributed core architecture:
 
--   **Frontend**: Next.js application (Zustand for state). Handles UI, URL submission, Turnstile verification, real-time status display, results viewing, history, and **displaying shared analyses via a new route (`/analysis/[jobId]`)**.
+-   **Frontend**: Next.js application (Zustand for state, next-intl for i18n). Handles UI, URL submission, Turnstile verification, real-time status display, results viewing, history, publication carousel, and **displaying shared analyses via a new route (`/analysis/[jobId]`)**.
 -   **Backend API**: Node.js/Express.js server. Handles API requests (including **Turnstile verification and logic for analysis reuse in `/api/submit`**), WebSocket management (Socket.IO + Redis Pub/Sub), DB interaction, and job queuing. The `/api/status/:jobId` endpoint is enhanced to serve data for shared links.
--   **Background Worker**: Node.js process. Listens to BullMQ, performs analysis (Diffbot -> OpenAI), **parses Diffbot output to store optimized data in new dedicated DB columns and minimal `job_details`**, updates DB, and emits status updates.
+-   **Background Worker**: Node.js process. Listens to BullMQ, performs analysis (Diffbot -> Gemini/OpenAI), **parses Diffbot output to store optimized data in new dedicated DB columns and minimal `job_details`**, updates DB, and emits status updates.
 -   **Database**: Supabase (PostgreSQL). Stores job info, status, **optimized article data (`article_title`, `article_text`, `article_preview_image_url`, etc. in dedicated columns), `normalized_url` for reuse checks, minimal `job_details` (other Diffbot metadata)**, `analysis_results`, and errors.
 -   **Job Queue**: BullMQ (Redis) for asynchronous analysis.
 -   **Real-time Communication**: WebSockets (Socket.IO + Redis Pub/Sub).
@@ -147,13 +148,14 @@ The application follows a distributed core architecture:
 
 ## Prerequisites
 
--   Node.js (v20.x LTS)
+-   Node.js (v22.x LTS)
 -   npm (v10.x)
 -   Supabase Account (Project URL and Service Key)
--   OpenAI API Key
+-   Google Gemini API Key (primary) and/or OpenAI API Key (fallback)
 -   Diffbot API Token
 -   Cloudflare Turnstile Account (Site Key and Secret Key)
 -   Redis instance
+-   Logo.dev API Key (for publication logos)
 
 ## Project Structure
 
@@ -179,10 +181,12 @@ unbias/
 │   │   │       │   └── [jobId]/
 │   │   │       │       └── page.tsx  # New: Page for displaying shared analyses
 │   │   │       └── page.tsx          # Main page
-│   │   ├── components/   
-│   │   │   ├── TurnstileWidget.tsx # Cloudflare Turnstile integration
-│   │   │   ├── ShareableLink.tsx   # Shareable link component
-│   │   │   └── ...                 # Other React components
+│   │   ├── components/
+│   │   │   ├── TurnstileWidget.tsx    # Cloudflare Turnstile integration
+│   │   │   ├── ShareableLink.tsx      # Shareable link component
+│   │   │   ├── PublicationCarousel.tsx # Scrolling publication logos
+│   │   │   ├── BiasScoreMeter.tsx     # Gradient bias meter visualization
+│   │   │   └── ...                    # Other React components
 │   │   ├── lib/          # Core libraries (apiClient, socketClient, store updated for reuse/sharing)
 │   │   └── ...
 │   └── ...
@@ -209,6 +213,7 @@ unbias/
 3.  Create `.env.local` from `.env.local.example` with:
     * Backend URLs
     * `NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY` for the Turnstile widget
+    * `NEXT_PUBLIC_LOGO_DEV_API_KEY` for publication logos
 4.  `npm run dev` (Access at `http://localhost:3000`)
 
 For more detailed frontend setup instructions, environment variables, and component information, please refer to the [Frontend README](./frontend/README.md).
@@ -235,22 +240,26 @@ For more detailed frontend setup instructions, environment variables, and compon
 ## Technologies Used
 
 -   **TypeScript**: Programming language for frontend and backend (v5.x).
--   **Next.js / React**: Frontend framework (Next.js v15.3.1, React v18.3.1).
+-   **Next.js / React**: Frontend framework (Next.js v15.4.4, React v18.3.1).
 -   **Zustand**: Frontend state management (v5.x).
--   **Node.js / Express.js**: Backend framework (Node.js v20.x, Express.js v4.x).
+-   **Node.js / Express.js**: Backend framework (Node.js v22.x, Express.js v4.x).
 -   **PostgreSQL (Supabase)**: Database for job storage.
 -   **Redis**: In-memory data store for BullMQ and WebSocket Pub/Sub.
 -   **BullMQ**: Job queue library for managing asynchronous analysis tasks (v5.x).
 -   **Socket.IO**: Real-time bidirectional event-based communication (WebSockets v4.x).
--   **OpenAI API**: For AI-powered text analysis (SDK v4.x, Model e.g., gpt-4o).
+-   **Google Gemini API**: Primary AI service for text analysis (v1.x, Model: gemini-2.0-flash-exp).
+-   **OpenAI API**: Fallback AI service for text analysis (SDK v4.x, Model: gpt-4o).
 -   **Diffbot API**: For robust article content extraction.
+-   **Firecrawl**: Alternative content extraction (via @mendable/firecrawl-js v4.x).
+-   **Mozilla Readability**: Content parsing and cleanup.
 -   **Cloudflare Turnstile**: Bot protection service with seamless user experience.
+-   **Logo.dev**: API for publication logo retrieval.
 -   **Tailwind CSS**: Utility-first CSS framework for the frontend (v4.x).
 -   **Shadcn/ui**: UI components for the frontend.
--   **Vitest**: Unit and component testing (Backend v1.x, Frontend v3.x).
+-   **Vitest**: Unit and component testing (Backend v3.x, Frontend v3.x).
 -   **Axios**: HTTP client (v1.x).
--   **Sharp**: Image processing (v0.3x).
--   **next-intl**: Internationalization for Next.js (v3.x).
+-   **Sharp**: Image processing (v0.34.x).
+-   **next-intl**: Internationalization for Next.js (v4.x).
 
 ## Logging System
 
@@ -267,7 +276,7 @@ The store module (`frontend/src/lib/store.ts`) centralizes logic for API calls, 
 
 ## Content Fetching Strategy
 
-To handle paywalls and improve content extraction reliability for certain domains (e.g., major news publications), the backend's `diffbotClient.ts` implements a proactive archiving strategy. For domains listed in `backend/src/config/index.ts` (`proactiveArchiveDomains`), it attempts to fetch content via `Archive.is` before sending the URL to Diffbot. This is recorded in the `job_details` under `fetchStrategy` and `isArchiveContent`.
+To handle paywalls and improve content extraction reliability for certain domains (e.g., major news publications), the backend implements a proactive archiving strategy. For domains listed in `backend/src/config/index.ts` (`proactiveArchiveDomains` - currently **50 major publications** across US, UK, Germany, France, Italy, Spain, and international sources), it attempts to fetch content via `Archive.is` before sending the URL to Diffbot. The system also includes fallback strategies using Firecrawl and Mozilla Readability for enhanced content extraction. This is recorded in the `job_details` under `fetchStrategy` and `isArchiveContent`.
 
 ## License
 
