@@ -1,6 +1,6 @@
 # Unbias: Article Analysis Tool
 
-[![Next.js](https://img.shields.io/badge/Next.js-15.4.4-black?style=flat-square&logo=next.js&logoColor=white)](https://nextjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-15.5.4-black?style=flat-square&logo=next.js&logoColor=white)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4.x-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![Node.js](https://img.shields.io/badge/Node.js-22.x-339933?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
@@ -238,7 +238,7 @@ For more detailed frontend setup instructions, environment variables, and compon
 ## Technologies Used
 
 -   **TypeScript**: Programming language for frontend and backend (v5.x).
--   **Next.js / React**: Frontend framework (Next.js v15.4.4, React v18.3.1).
+-   **Next.js / React**: Frontend framework (Next.js v15.5.4, React v18.3.1).
 -   **Zustand**: Frontend state management (v5.x).
 -   **Node.js / Express.js**: Backend framework (Node.js v22.x, Express.js v4.x).
 -   **PostgreSQL (Supabase)**: Database for job storage.
