@@ -12,7 +12,7 @@ const Header = () => {
 
     return (
         <header className="border-b bg-background/95 backdrop-blur-sm sticky top-0 z-40">
-            <div className="container mx-auto flex justify-between items-center h-16 px-4">
+            <div className="container mx-auto max-w-6xl flex justify-between items-center h-16 px-4">
                 <Link href="/" className="font-bold text-xl flex items-center gap-2">
                     <Image
                         src="/unbiased-icon.svg"
