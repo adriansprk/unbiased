@@ -43,6 +43,31 @@ describe('contentExtractor', () => {
       const result = trimAtSentinels(text);
       expect(result).toBe(text);
     });
+
+    it('should NOT trim when "Kommentare" appears as a word in normal text', () => {
+      const text = 'önne man wieder in Ruhe durch die Straßen und in Restaurants gehen, über solche Kommentare wundern sich Einheimische bestenfalls. Zudem passiert auch noch mehr interessanter Inhalt.';
+      const result = trimAtSentinels(text);
+      // Should keep everything because "Kommentare" is just a word, not a section header
+      expect(result).toContain('über solche Kommentare wundern sich');
+      expect(result).toContain('passiert auch noch mehr');
+      expect(result).toBe(text);
+    });
+
+    it('should trim when "Kommentare" appears as a standalone section header', () => {
+      const mainContent = 'A'.repeat(800);
+      const text = `${mainContent}\n\nKommentare\n\nHere are reader comments...`;
+      const result = trimAtSentinels(text);
+      expect(result).not.toContain('Kommentare');
+      expect(result).not.toContain('Here are reader comments');
+    });
+
+    it('should trim when "Kommentare" appears with a count', () => {
+      const mainContent = 'B'.repeat(800);
+      const text = `${mainContent}\n\nKommentare (42)\n\nHere are reader comments...`;
+      const result = trimAtSentinels(text);
+      expect(result).not.toContain('Kommentare');
+      expect(result).not.toContain('Here are reader comments');
+    });
   });
 
   describe('htmlToText', () => {

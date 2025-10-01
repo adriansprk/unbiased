@@ -12,7 +12,9 @@ const SENTINELS = [
   // English
   /\b(Recommended|More from|Read more|Most read|Trending|You might also like|Related articles?|More on this topic)\b/i,
   // Navigation/Footer (multi-language)
-  /\b(Kommentare|Abonnieren|Newsletter|Services|Spiele|Games|Comments|Subscribe)\b/i,
+  // Note: "Kommentare" and "Comments" require specific context (standalone or with count) to avoid false positives
+  /^(Kommentare|Comments)(\s*\(?\d+\)?)?$/mi, // Match only as standalone section heading with optional count
+  /\b(Abonnieren|Newsletter|Services|Spiele|Games|Subscribe)\b/i,
   // Site-specific footer markers (generic enough to apply broadly)
   /\b(SPIEGEL Gruppe|Suche starten|Politik|Ausland|Panorama|Sport|Wirtschaft|Wissenschaft|Netzwelt|Kultur|Leben|Geschichte)\s+(Menü|aufklappen)/i,
   // Archive.is navigation and metadata

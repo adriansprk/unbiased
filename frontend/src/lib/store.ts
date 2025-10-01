@@ -495,8 +495,43 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
                     });
                 }
             }
-        } catch (error) {
-            logger.error('Error checking job status:', error);
+        } catch (error: unknown) {
+            // If job not found (404), stop polling for this job
+            const isNotFound = (error as { response?: { status?: number }; message?: string })?.response?.status === 404 ||
+                              (error as { message?: string })?.message?.includes('not found') ||
+                              (error as { message?: string })?.message?.includes('404');
+
+            if (isNotFound) {
+                logger.warn(`Job ${jobId} not found (404), stopping all status checks`);
+
+                // Clear all timeouts to stop polling
+                if (statusCheckInterval) {
+                    clearTimeout(statusCheckInterval);
+                    statusCheckInterval = null;
+                }
+                timeoutIds.forEach(id => clearTimeout(id));
+                timeoutIds = [];
+
+                // Remove this job from history if it no longer exists
+                const currentHistory = get().historyItems;
+                const updatedHistory = currentHistory.filter(item => item.id !== jobId);
+                if (updatedHistory.length !== currentHistory.length) {
+                    logger.info(`Removing non-existent job ${jobId} from history`);
+                    set({ historyItems: updatedHistory });
+                    saveHistoryToLocalStorage(updatedHistory);
+                }
+
+                // Only update state if this is the current job
+                if (get().jobId === jobId) {
+                    set({
+                        jobStatus: 'Failed',
+                        errorMessage: 'Analysis not found. It may have been removed or the link is incorrect.',
+                        isLoading: false
+                    });
+                }
+            } else {
+                logger.error('Error checking job status:', error);
+            }
         }
     },
 
