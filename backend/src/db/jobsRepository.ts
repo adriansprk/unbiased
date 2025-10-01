@@ -62,9 +62,21 @@ export const jobsRepository = {
    * @param url The original URL for the job
    * @param language The language for analysis (default: 'en')
    * @param normalizedUrl Optional pre-normalized URL, if not provided will use normalizeUrl utility
+   * @param metadata Optional metadata extracted from the URL (title, image, author, etc.)
    * @returns The created job object
    */
-  async createJob(url: string, language: string = 'en', normalizedUrl?: string): Promise<Job> {
+  async createJob(
+    url: string,
+    language: string = 'en',
+    normalizedUrl?: string,
+    metadata?: {
+      title?: string;
+      image?: string;
+      authors?: string[];
+      siteName?: string;
+      canonicalUrl?: string;
+    }
+  ): Promise<Job> {
     try {
       // Validate language parameter
       const validLanguage = ['en', 'de'].includes(language) ? language : 'en';
@@ -78,6 +90,12 @@ export const jobsRepository = {
           url,
           language: validLanguage,
           normalized_url: normalized,
+          // Add metadata fields if provided
+          article_title: metadata?.title || null,
+          article_preview_image_url: metadata?.image || null,
+          article_author: metadata?.authors?.[0] || null, // Use first author
+          article_source_name: metadata?.siteName || null,
+          article_canonical_url: metadata?.canonicalUrl || url,
         })
         .select()
         .single();

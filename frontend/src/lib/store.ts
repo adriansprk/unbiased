@@ -146,12 +146,26 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
         // Unsubscribe from any existing job
         socketService.unsubscribeFromJob();
 
+        // Prepare immediate article data from metadata if available
+        let initialArticleData: ArticleData | null = null;
+        if (newJobData.metadata) {
+            logger.debug('Creating initial article data from metadata:', newJobData.metadata);
+            initialArticleData = {
+                title: newJobData.metadata.title || 'Article being analyzed',
+                source: newJobData.metadata.siteName || '',
+                author: newJobData.metadata.authors?.join(', ') || '',
+                imageUrl: newJobData.metadata.image || '',
+                description: newJobData.metadata.description || 'Analysis in progress...',
+                url: newJobData.metadata.url
+            };
+        }
+
         // Reset state and start new analysis
         set({
             jobId: newJobId,
             jobStatus: 'Queued',
             analysisData: null,
-            articleData: null,
+            articleData: initialArticleData,
             errorMessage: null,
             isLoading: true,
             hasStarted: true,
@@ -427,9 +441,9 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
                     }
                 }
 
-                // ALWAYS update article data during ongoing analysis (regardless of status)
-                // This ensures we have the most current metadata as it becomes available
-                const articleData: ArticleData = {
+                // Update article data during ongoing analysis, but be smart about it
+                // Only update if we have better data than what we already have
+                const newArticleData: ArticleData = {
                     title: statusData.article_title || (statusData.job_details?.title || 'Article being analyzed'),
                     source: statusData.article_source_name || (statusData.job_details?.siteName || ''),
                     author: statusData.article_author || (statusData.job_details?.author || ''),
@@ -440,30 +454,44 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
                     url: statusData.url || ''
                 };
 
-                logger.debug('Setting article data from status endpoint', articleData);
-
-                // Define what makes article data meaningful/complete
-                const isDataMeaningful = articleData.title &&
-                    articleData.title !== 'Article being analyzed' &&
-                    articleData.title !== 'Untitled Article';
+                logger.debug('New article data from status endpoint:', newArticleData);
 
                 const currentArticleData = get().articleData;
 
-                // Only update article data if one of these conditions is true:
-                // 1. We don't have any article data yet
-                // 2. Our current data is a placeholder (with "Article being analyzed" title)
-                // 3. The new data actually contains meaningful information
-                const shouldUpdate = !currentArticleData ||
-                    currentArticleData.title === 'Article being analyzed' ||
-                    isDataMeaningful;
+                // Calculate "completeness score" for comparison
+                const scoreArticleData = (data: ArticleData | null): number => {
+                    if (!data) return 0;
+                    let score = 0;
+                    if (data.title && data.title !== 'Article being analyzed' && data.title !== 'Untitled Article') score += 3;
+                    if (data.imageUrl) score += 2;
+                    if (data.author) score += 1;
+                    if (data.source) score += 1;
+                    if (data.description && data.description !== 'Analysis in progress...') score += 1;
+                    return score;
+                };
+
+                const currentScore = scoreArticleData(currentArticleData);
+                const newScore = scoreArticleData(newArticleData);
+
+                // Only update if the new data is actually better (higher score)
+                // OR if we don't have any data yet
+                const shouldUpdate = !currentArticleData || newScore > currentScore;
 
                 if (shouldUpdate) {
-                    logger.debug('Updating article data:', {
+                    logger.debug('Updating article data (score improved):', {
                         oldTitle: currentArticleData?.title,
-                        newTitle: articleData.title,
-                        hasImage: !!articleData.imageUrl
+                        newTitle: newArticleData.title,
+                        oldScore: currentScore,
+                        newScore: newScore,
+                        hasImage: !!newArticleData.imageUrl
                     });
-                    set({ articleData });
+                    set({ articleData: newArticleData });
+                } else {
+                    logger.debug('Keeping existing article data (better quality):', {
+                        currentTitle: currentArticleData?.title,
+                        currentScore,
+                        newScore
+                    });
                 }
             }
         } catch (error) {

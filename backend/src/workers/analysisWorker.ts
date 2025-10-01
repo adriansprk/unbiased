@@ -6,6 +6,7 @@ import { jobsRepository } from '../db/jobsRepository';
 import { JobStatus, JobUpdatePayload, AnalysisResults, AnalysisJobData, ErrorType, JobDetails, ImageDetails, DiffbotArticleObject } from '../types';
 import { redisClient, emitSocketUpdate } from '../lib';
 import { fetchContentFromDiffbot } from '../lib/diffbotClient';
+import { fetchContentFromFirecrawl, isArchiveUrl } from '../lib/firecrawlClient';
 import { performAnalysisWithOpenAI } from '../lib/openaiClient';
 import { performAnalysisWithGemini } from '../lib/geminiClient';
 import logger from '../lib/logger';
@@ -203,6 +204,7 @@ export function getRetryDelay(error: Error | JobProcessingError, attemptsMade: n
 const workerOptions: WorkerOptions = {
   connection: redisClient,
   concurrency: 5, // Process up to 5 jobs concurrently
+  lockDuration: 180000, // 3 minutes - allow enough time for Gemini API calls which can be slow
   removeOnComplete: {
     count: 100, // Keep only the 100 most recent completed jobs
   },
@@ -240,18 +242,63 @@ const worker = new Worker(
       // 1. Update job status to Processing
       await updateJobStatus(jobId, 'Processing');
 
-      // 2. Update status to Fetching before calling Diffbot
+      // 2. Update status to Fetching before calling content extraction API
       await updateJobStatus(jobId, 'Fetching');
 
-      // 3. Call Diffbot API to extract article content
+      // 3. Call content extraction API - Use Firecrawl only for successfully resolved archive URLs
       let extractedContent;
+      let useFirecrawl = false;
+      let finalUrl = url;
+
       try {
-        extractedContent = await fetchContentFromDiffbot(url);
+        // Check if this is already an archive URL
+        const isArchive = isArchiveUrl(url);
+
+        if (isArchive && config.firecrawl?.apiKey) {
+          // Already an archive URL, use Firecrawl directly
+          logger.info(`Using Firecrawl for archive URL: ${url}`);
+          useFirecrawl = true;
+          finalUrl = url;
+        } else {
+          // Check if domain is on proactive list and try to resolve archive URL
+          const { extractDomain, isDomainOnProactiveList } = await import('../lib/utils');
+          const domain = extractDomain(url);
+
+          if (isDomainOnProactiveList(domain)) {
+            logger.info(`Domain ${domain} is on proactive list. Attempting to resolve archive snapshot...`);
+            const { resolveArchiveSnapshot } = await import('../lib/resolveArchive');
+            // Strip query params for better archive.is compatibility
+            const cleanUrl = url.replace(/[?#].*$/, '');
+            const archiveUrl = await resolveArchiveSnapshot(cleanUrl);
+
+            if (archiveUrl && config.firecrawl?.apiKey) {
+              // Successfully resolved archive URL, use Firecrawl
+              logger.info(`Archive snapshot resolved: ${archiveUrl}. Using Firecrawl.`);
+              useFirecrawl = true;
+              finalUrl = archiveUrl;
+            } else {
+              // Archive resolution failed, fall back to Diffbot with original URL
+              logger.warn(`Archive resolution failed for ${domain}. Falling back to Diffbot with original URL.`);
+              useFirecrawl = false;
+              finalUrl = url;
+            }
+          }
+        }
+
+        // Fetch content using the determined service
+        if (useFirecrawl) {
+          logger.info(`Fetching content with Firecrawl from: ${finalUrl}`);
+          extractedContent = await fetchContentFromFirecrawl(finalUrl);
+        } else {
+          logger.info(`Fetching content with Diffbot from: ${finalUrl}`);
+          extractedContent = await fetchContentFromDiffbot(finalUrl);
+        }
 
         if (!extractedContent) {
+          const serviceName = useFirecrawl ? 'Firecrawl' : 'Diffbot';
           throw new JobProcessingError(
-            'Diffbot returned no content',
-            ErrorType.DIFFBOT,
+            `${serviceName} returned no content`,
+            ErrorType.DIFFBOT, // Using DIFFBOT error type for content extraction failures
             jobId,
             true, // Retryable
             3, // Max retries
@@ -290,8 +337,11 @@ const worker = new Worker(
         const isRateLimit =
           errorMsg.toLowerCase().includes('rate limit') || errorMsg.includes('429');
 
+        // Determine which service was used
+        const serviceName = useFirecrawl ? 'Firecrawl' : 'Diffbot';
+
         // Categorize network errors properly
-        let errorType = ErrorType.DIFFBOT;
+        let errorType = ErrorType.DIFFBOT; // Using DIFFBOT error type for content extraction failures
         if (isRateLimit) {
           errorType = ErrorType.RATE_LIMIT;
         } else if (errorMsg.toLowerCase().includes('timeout')) {
@@ -301,7 +351,7 @@ const worker = new Worker(
         }
 
         throw new JobProcessingError(
-          `Failed to extract content with Diffbot: ${errorMsg}`,
+          `Failed to extract content with ${serviceName}: ${errorMsg}`,
           errorType,
           jobId,
           true, // Most API issues are retryable
@@ -312,15 +362,23 @@ const worker = new Worker(
 
       // 4. Extract and save specific fields to dedicated columns
       try {
-        // Extract fields from Diffbot response
+        // Get existing job data to preserve metadata from initial extraction
+        const existingJob = await jobsRepository.getJob(jobId);
+
+        // Extract fields from content extraction, but preserve existing metadata where available
+        // Priority: existing metadata > extracted content > fallback
         const articleData = {
-          article_title: extractedContent.title || null,
+          article_title: extractedContent.title || existingJob.article_title || null,
           article_text: extractedContent.text || null,
-          article_author: extractedContent.author || null,
-          article_source_name: extractedContent.siteName || null,
-          article_canonical_url: extractedContent.url || url, // Use canonical URL if available, otherwise original URL
-          article_preview_image_url: selectPreviewImage(extractedContent.images),
-          article_publication_date: extractedContent.date || null,
+          // Preserve author from initial metadata extraction if available
+          article_author: existingJob.article_author || extractedContent.author || null,
+          // Preserve site name from initial metadata extraction if available
+          article_source_name: existingJob.article_source_name || extractedContent.siteName || null,
+          // IMPORTANT: Always preserve the canonical URL from initial extraction, never overwrite with archive.is URLs
+          article_canonical_url: existingJob.article_canonical_url || url,
+          // Preserve preview image from initial metadata extraction if available, otherwise select from extracted images
+          article_preview_image_url: existingJob.article_preview_image_url || selectPreviewImage(extractedContent.images),
+          article_publication_date: extractedContent.date || existingJob.article_publication_date || null,
         };
 
         // Create minimal metadata JSON
@@ -368,7 +426,44 @@ const worker = new Worker(
         );
       }
 
-      // 7. Call AI API for analysis - now using either Gemini (primary) or OpenAI (fallback)
+      // 7. Save LLM input to file for development debugging (only in development)
+      if (process.env.NODE_ENV === 'development') {
+        try {
+          const fs = await import('fs/promises');
+          const path = await import('path');
+
+          // Create extracted-content-samples directory if it doesn't exist
+          const samplesDir = path.join(process.cwd(), 'extracted-content-samples');
+          await fs.mkdir(samplesDir, { recursive: true });
+
+          // Create filename with timestamp and domain
+          const domain = new URL(url).hostname.replace('www.', '');
+          const timestamp = new Date().toISOString().replace(/:/g, '-').replace(/\..+/, '');
+          const filename = `llm-input_${domain}_${timestamp}.json`;
+          const filepath = path.join(samplesDir, filename);
+
+          // Prepare LLM input data
+          const llmInput = {
+            jobId,
+            url,
+            language,
+            timestamp: new Date().toISOString(),
+            title,
+            textLength: text.length,
+            textPreview: text.substring(0, 500) + '...',
+            fullText: text
+          };
+
+          // Write to file
+          await fs.writeFile(filepath, JSON.stringify(llmInput, null, 2));
+          logger.debug(`Saved LLM input to: ${filename}`);
+        } catch (fsError) {
+          // Don't fail the job if logging fails
+          logger.warn('Failed to save LLM input sample:', fsError);
+        }
+      }
+
+      // 8. Call AI API for analysis - now using either Gemini (primary) or OpenAI (fallback)
       let analysisResults: AnalysisResults;
       try {
         // Determine which LLM provider to use based on configuration

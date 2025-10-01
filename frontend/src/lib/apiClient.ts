@@ -15,6 +15,15 @@ const apiClient = axios.create({
 export interface SubmitNewJobResponse {
     message: string;
     jobId: string;
+    metadata?: {
+        title?: string;
+        description?: string;
+        image?: string;
+        authors?: string[];
+        siteName?: string;
+        url: string;
+        favicon?: string;
+    };
 }
 
 export interface SubmitExistingJobResponse {

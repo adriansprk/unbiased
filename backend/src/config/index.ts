@@ -38,6 +38,7 @@ export const proactiveArchiveDomains = [
   // === Additions for Germany (DE) ===
   'sueddeutsche.de', // Süddeutsche Zeitung
   'welt.de', // Die Welt
+  'tagesspiegel.de', // Der Tagesspiegel (Berlin)
   'handelsblatt.com', // Handelsblatt (Business)
   'focus.de', // Focus Online - Often more of a portal, might be less critical for proactive archive.
   'managermagazin.de', // Manager Magazin
@@ -122,6 +123,9 @@ const config = {
   diffbot: {
     apiKey: validateVar('DIFFBOT_API_KEY'),
     apiUrl: 'https://api.diffbot.com/v3',
+  },
+  firecrawl: {
+    apiKey: process.env.FIRECRAWL_API_KEY || '',
   },
   environment: process.env.NODE_ENV || 'development',
   features: {

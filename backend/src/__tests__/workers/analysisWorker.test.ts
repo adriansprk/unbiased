@@ -35,6 +35,16 @@ const mockGetJobTitleAndText = vi.hoisted(() => vi.fn().mockResolvedValue({
     article_title: 'Test Article Title',
     article_text: 'This is the test article content.'
 }));
+const mockGetJob = vi.hoisted(() => vi.fn(async () => ({
+    id: 'test-job-id',
+    url: 'https://example.com/test-article',
+    article_title: null,  // Initially null, will be populated during processing
+    article_author: null,
+    article_source_name: null,
+    article_canonical_url: 'https://example.com/canonical',
+    article_preview_image_url: null,
+    article_publication_date: null
+})));
 const mockEmitSocketUpdate = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const mockFetchContentFromDiffbot = vi.hoisted(() => vi.fn().mockResolvedValue(mockExtractedContent));
 const mockPerformAnalysisWithOpenAI = vi.hoisted(() => vi.fn().mockResolvedValue(mockAnalysisResults));
@@ -63,7 +73,8 @@ vi.mock('../../db/jobsRepository', () => ({
         updateJobAsFailed: mockUpdateJobAsFailed,
         updateJobAsComplete: mockUpdateJobAsComplete,
         saveExtractedArticleContent: mockSaveExtractedArticleContent,
-        getJobTitleAndText: mockGetJobTitleAndText
+        getJobTitleAndText: mockGetJobTitleAndText,
+        getJob: mockGetJob
     }
 }));
 

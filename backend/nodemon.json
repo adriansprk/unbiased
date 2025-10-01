@@ -1,0 +1,14 @@
+{
+  "watch": ["src"],
+  "ext": "ts,js",
+  "ignore": [
+    "node_modules",
+    "dist",
+    "extracted-content-samples",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "src/**/*.json"
+  ],
+  "delay": 1000,
+  "exec": "ts-node"
+}

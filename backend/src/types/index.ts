@@ -4,7 +4,7 @@
 export type JobStatus = 'Queued' | 'Processing' | 'Fetching' | 'Analyzing' | 'Complete' | 'Failed';
 
 // Fetch strategy type
-export type FetchStrategy = 'direct' | 'archive.is';
+export type FetchStrategy = 'direct' | 'archive.is' | 'firecrawl';
 
 // Log level types
 export type LogLevel = 'error' | 'warn' | 'info' | 'debug' | 'trace';

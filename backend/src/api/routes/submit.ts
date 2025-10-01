@@ -6,6 +6,7 @@ import { addAnalysisJob } from '../../queues/analysisQueue';
 import { extractDomain, normalizeUrl } from '../../lib/utils';
 import logger from '../../lib/logger';
 import config from '../../config';
+import { extractUrlMetadata } from '../../lib/metadataExtractor';
 
 // Validation schema for submit endpoint
 const submitSchema = z.object({
@@ -210,19 +211,38 @@ export async function submitHandler(req: Request, res: Response) {
             }
         }
 
-        // 5. STEP FIVE: Create and queue new job (only reached if all validations pass)
+        // 5. STEP FIVE: Extract immediate metadata for user feedback
+        logger.info(`Extracting metadata for URL: ${url}`);
+        const metadata = await extractUrlMetadata(url);
+
+        // 6. STEP SIX: Create and queue new job (only reached if all validations pass)
         logger.info(`Creating new job for URL: ${url}, language: ${language}`);
 
-        // Create job record in database with normalized URL
-        const job = await jobsRepository.createJob(url, language, normalizedUrl);
+        // Create job record in database with normalized URL and metadata
+        const job = await jobsRepository.createJob(url, language, normalizedUrl, {
+            title: metadata.title,
+            image: metadata.image,
+            authors: metadata.authors,
+            siteName: metadata.siteName,
+            canonicalUrl: metadata.url
+        });
 
         // Add job to the analysis queue
         await addAnalysisJob(job.id, url, language);
 
-        // Return success response with job ID
+        // Return success response with job ID and immediate metadata
         return res.status(201).json({
             message: 'Analysis job submitted successfully',
-            jobId: job.id
+            jobId: job.id,
+            metadata: {
+                title: metadata.title,
+                description: metadata.description,
+                image: metadata.image,
+                authors: metadata.authors,
+                siteName: metadata.siteName,
+                url: metadata.url,
+                favicon: metadata.favicon
+            }
         });
     } catch (error) {
         logger.error('Error in submit endpoint:', error);
