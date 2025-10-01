@@ -11,84 +11,81 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 /**
  * List of domains that should be fetched via Archive.is
  * These are typically major publications with paywalls
+ * Organized by country/region for easier maintenance
  */
 export const proactiveArchiveDomains = [
-  // === Existing Entries (Reviewed and Kept) ===
-  'nytimes.com', // The New York Times (US)
-  'wsj.com', // The Wall Street Journal (US)
-  'washingtonpost.com', // The Washington Post (US)
-  'ft.com', // Financial Times (UK)
-  'bloomberg.com', // Bloomberg (US) - Often has article limits
-  'economist.com', // The Economist (UK)
-  'spiegel.de', // Der Spiegel (Germany)
-  'zeit.de', // Die Zeit (Germany)
-  'faz.net', // Frankfurter Allgemeine Zeitung (Germany)
-  'telegraph.co.uk', // The Telegraph (UK)
-  'thetimes.co.uk', // The Times & The Sunday Times (UK)
-  'bbc.com', // BBC News (UK) - Primarily for news.bbc.co.uk or bbc.com/news
-  'newyorker.com', // The New Yorker (US) - Often has article limits
-  'wired.com', // Wired (US) - Often has article limits
-  'theatlantic.com', // The Atlantic (US) - Often has article limits
-  'forbes.com', // Forbes (US) - Can have interstitial ads/article limits
-  'businessinsider.com', // Business Insider (US/Global)
-  // 'medium.com',           // Keeping Medium commented out as it's a platform, quality varies wildly, and paywall is user-dependent.
-  'latimes.com', // Los Angeles Times (US)
-  'theguardian.com', // The Guardian (UK) - Generally free, but good to include for consistency if others are.
-
-  // === Additions for Germany (DE) ===
-  'sueddeutsche.de', // Süddeutsche Zeitung
-  'welt.de', // Die Welt
-  'tagesspiegel.de', // Der Tagesspiegel (Berlin)
-  'handelsblatt.com', // Handelsblatt (Business)
-  'focus.de', // Focus Online - Often more of a portal, might be less critical for proactive archive.
-  'managermagazin.de', // Manager Magazin
-
-  // === Additions for United States (US) ===
+  // === United States (US) ===
+  'nytimes.com', // The New York Times
+  'washingtonpost.com', // The Washington Post
+  'bloomberg.com', // Bloomberg
+  'latimes.com', // Los Angeles Times
   'usatoday.com', // USA Today
-  'npr.org', // National Public Radio (News section)
   'chicagotribune.com', // Chicago Tribune
-  // 'cnn.com',              // CNN - Generally free, but sometimes has premium content.
-  // 'foxnews.com',          // Fox News - Generally free.
+  'newyorker.com', // The New Yorker
+  'theatlantic.com', // The Atlantic
+  'wired.com', // Wired
+  'forbes.com', // Forbes
+  'businessinsider.com', // Business Insider
+  'npr.org', // National Public Radio
+  'foreignpolicy.com', // Foreign Policy
+  'harpers.org', // Harper's Magazine
+  'vanityfair.com', // Vanity Fair
+  'technologyreview.com', // MIT Technology Review
+  // 'cnn.com', // CNN - Generally free
+  // 'foxnews.com', // Fox News - Generally free
 
-  // === Additions for United Kingdom (UK) ===
+  // === United Kingdom (UK) ===
+  'ft.com', // Financial Times
+  'economist.com', // The Economist
+  'telegraph.co.uk', // The Telegraph
+  'thetimes.co.uk', // The Times & The Sunday Times
+  'bbc.com', // BBC News
   'independent.co.uk', // The Independent
-  'dailymail.co.uk', // Daily Mail - Generally free, but very high traffic.
+  'dailymail.co.uk', // Daily Mail
   'standard.co.uk', // Evening Standard
-  'theguardian.com', // The Guardian
 
-  // === Additions for France (FR) ===
+  // === Germany (DE) ===
+  'spiegel.de', // Der Spiegel
+  'zeit.de', // Die Zeit
+  'faz.net', // Frankfurter Allgemeine Zeitung
+  'sueddeutsche.de', // Süddeutsche Zeitung
+  'tagesspiegel.de', // Der Tagesspiegel
+  'handelsblatt.com', // Handelsblatt
+  'taz.de', // taz
+  'bild.de', // Bild
+
+  // === France (FR) ===
   'lemonde.fr', // Le Monde
   'lefigaro.fr', // Le Figaro
   'liberation.fr', // Libération
-  'lesechos.fr', // Les Echos (Business)
-  'mediapart.fr', // Mediapart (Investigative, Subscription)
+  'lesechos.fr', // Les Echos
+  'mediapart.fr', // Mediapart
 
-  // === Additions for Italy (IT) ===
+  // === Italy (IT) ===
   'corriere.it', // Corriere della Sera
   'repubblica.it', // La Repubblica
   'lastampa.it', // La Stampa
-  'ilsole24ore.com', // Il Sole 24 Ore (Business)
-  // 'ansa.it',              // ANSA (News Agency) - Generally free.
+  'ilsole24ore.com', // Il Sole 24 Ore
+  // 'ansa.it', // ANSA - Generally free
 
-  // === Additions for Spain (ES) ===
+  // === Spain (ES) ===
   'elpais.com', // El País
   'elmundo.es', // El Mundo
   'abc.es', // ABC
   'lavanguardia.com', // La Vanguardia
-  'expansion.com', // Expansión (Business)
+  'expansion.com', // Expansión
 
-  // === Other Notable International Publications ===
-  'reuters.com', // Reuters (Global News Agency)
-  'apnews.com', // Associated Press (Global News Agency)
-  'aljazeera.com', // Al Jazeera (Global)
-  'foreignpolicy.com', // Foreign Policy (US)
-  'harpers.org', // Harper's Magazine (US)
-  'vanityfair.com', // Vanity Fair (US) - Lifestyle but sometimes in-depth articles
-  'technologyreview.com', // MIT Technology Review
-  'science.org', // Science Magazine (AAAS) - For scientific articles
-  'nature.com', // Nature Journal - For scientific articles
-  'cell.com', // Cell Press Journals - For scientific articles
-  'thelancet.com', // The Lancet Journals - For medical articles
+  // === International & Other ===
+  'apnews.com', // Associated Press
+  'aljazeera.com', // Al Jazeera
+
+  // === Academic & Scientific ===
+  'science.org', // Science Magazine (AAAS)
+  'nature.com', // Nature Journal
+  'cell.com', // Cell Press Journals
+  'thelancet.com', // The Lancet Journals
+
+  // 'medium.com', // Platform with variable quality and user-dependent paywalls
 ];
 
 // Configuration object

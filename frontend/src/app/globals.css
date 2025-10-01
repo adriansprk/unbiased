@@ -187,3 +187,17 @@
 .fade-bottom {
   mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
 }
+
+/* Publication carousel scroll animation */
+@keyframes scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-scroll {
+  animation: scroll 30s linear infinite;
+}

@@ -51,6 +51,11 @@ const nextConfig = {
             {
                 protocol: 'https',
                 hostname: 'picsum.photos'
+            },
+            // Logo.dev for publication logos
+            {
+                protocol: 'https',
+                hostname: 'img.logo.dev'
             }
         ]
     },

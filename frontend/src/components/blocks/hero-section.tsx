@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowRightIcon } from "lucide-react";
 import { Glow } from "@/components/ui/glow";
 import { cn } from "@/lib/utils";
+import PublicationCarousel from "@/components/PublicationCarousel";
 
 interface HeroAction {
     text: string;
@@ -95,6 +96,13 @@ export function HeroSection({
                         className="animate-appear-zoom opacity-0 delay-700 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
                     />
                 </div>
+
+                {/* Publication carousel */}
+                {showUrlInput && (
+                    <div className="relative z-10 w-full animate-appear opacity-0 delay-1000">
+                        <PublicationCarousel />
+                    </div>
+                )}
             </div>
         </section>
     );
