@@ -26,19 +26,15 @@ const ArticleCard: React.FC<{ article: ArticleData }> = ({ article }) => {
     // Store the image URL to detect external changes
     const [currentImageUrl, setCurrentImageUrl] = useState<string | undefined>(imageUrl);
 
-    // Function to truncate URL for display
+    // Function to extract domain from URL for display
     const getTruncatedUrl = (url: string) => {
         try {
-            // Remove protocol and trailing slashes for cleaner display
-            const displayUrl = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
-
-            // If URL is too long, truncate it
-            if (displayUrl.length > 40) {
-                return displayUrl.substring(0, 37) + '...';
-            }
-            return displayUrl;
+            const urlObj = new URL(url);
+            // Return just the hostname (domain)
+            return urlObj.hostname;
         } catch {
-            return url;
+            // Fallback: remove protocol and extract domain manually
+            return url.replace(/^https?:\/\//, '').split('/')[0];
         }
     };
 
@@ -75,24 +71,26 @@ const ArticleCard: React.FC<{ article: ArticleData }> = ({ article }) => {
             )}
 
             {/* Content section */}
-            <div className="p-4 flex-grow">
-                {/* Title */}
-                <h3 className="text-xl font-semibold mb-3">{title}</h3>
+            <div className="p-6 flex-grow flex flex-col justify-between">
+                <div>
+                    {/* Title */}
+                    <h3 className="text-xl font-semibold mb-3">{title}</h3>
 
-                {/* Author - only if available */}
-                {author && (
-                    <p className="text-sm text-muted-foreground mb-2">{author}</p>
-                )}
+                    {/* Author - only if available */}
+                    {author && (
+                        <p className="text-sm text-muted-foreground">{author}</p>
+                    )}
+                </div>
 
-                {/* URL link - truncated */}
+                {/* URL link at bottom */}
                 {url && (
-                    <div className="mt-auto pt-2 flex items-center">
-                        <ExternalLink className="h-3 w-3 mr-1 text-muted-foreground" />
+                    <div className="mt-4 pt-4 border-t border-border/50 flex items-center">
+                        <ExternalLink className="h-3 w-3 mr-1.5 text-muted-foreground/70" />
                         <a
                             href={url}
                             target="_blank"
                             rel="noreferrer noopener"
-                            className="text-xs text-muted-foreground hover:text-primary transition-colors truncate"
+                            className="text-xs text-muted-foreground/70 hover:text-primary transition-colors"
                         >
                             {getTruncatedUrl(url)}
                         </a>

@@ -153,10 +153,14 @@ const BiasScoreMeter: React.FC<BiasScoreMeterProps> = ({
 
             {/* Bias meter with increased top spacing */}
             <div className="mt-5 space-y-2">
-                <Progress
-                    value={progressValue}
-                    className={cn("h-2 w-full", progressColor)}
-                />
+                {/* Gradient background bar with indicator */}
+                <div className="relative h-2 w-full rounded-full bg-gradient-to-r from-green-500/40 via-yellow-500/40 to-red-500/40 dark:from-green-500/30 dark:via-yellow-500/30 dark:to-red-500/30">
+                    {/* Indicator dot */}
+                    <div
+                        className={cn("absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 border-background shadow-lg", progressColor)}
+                        style={{ left: `calc(${progressValue}% - 8px)` }}
+                    />
+                </div>
 
                 <div className="flex justify-between text-xs text-muted-foreground">
                     <span>{tCommon('low')}</span>
