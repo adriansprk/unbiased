@@ -18,6 +18,7 @@ import logger from "@/utils/logger";
 export default function HomeClient() {
     // Get translations and locale
     const recentAnalysesT = useTranslations('RecentAnalyses');
+    const progressT = useTranslations('SkeletonLoader');
     const locale = useLocale();
 
     // Use the Zustand store instead of local state
@@ -25,6 +26,7 @@ export default function HomeClient() {
         jobId,
         jobStatus,
         errorMessage,
+        progressMessage,
         analysisData,
         articleData,
         historyItems,
@@ -34,6 +36,39 @@ export default function HomeClient() {
         loadHistory,
         checkJobStatus
     } = useAnalysisStore();
+
+    // Map progress messages from backend to translation keys
+    const getTranslatedProgressMessage = (message: string | null): string | null => {
+        if (!message) return null;
+
+        logger.debug(`[PROGRESS TRANSLATION] Raw message: "${message}"`);
+
+        // Map backend messages to translation keys and translate them
+        switch (message) {
+            case 'Looking for archived version...':
+                return progressT('lookingForArchive');
+            case 'Checking is...':
+                return progressT('checkingIs');
+            case 'Checking ph...':
+                return progressT('checkingPh');
+            case 'Checking today...':
+                return progressT('checkingToday');
+            case 'Checking md (last attempt)...':
+                return progressT('checkingMd');
+            case 'Reading archived article...':
+                return progressT('readingArchived');
+            case 'Fetching article content...':
+                return progressT('fetchingContent');
+            case 'Analyzing with AI...':
+                return progressT('analyzingAI');
+            default:
+                // If no mapping found, return the raw message
+                logger.debug(`[PROGRESS TRANSLATION] No mapping found, returning raw message`);
+                return message;
+        }
+    };
+
+    const translatedProgressMessage = getTranslatedProgressMessage(progressMessage);
 
     // Load history when component mounts
     useEffect(() => {
@@ -107,10 +142,14 @@ export default function HomeClient() {
             )}
 
             {/* Modern Hero section with URL input passed directly */}
-            <HeroSectionDemo urlInputComponent={urlInputComponent} />
+            <HeroSectionDemo
+                urlInputComponent={urlInputComponent}
+                progressMessage={translatedProgressMessage}
+            />
 
             <div className="container mx-auto px-4 py-4 max-w-6xl">
                 <main>
+
                     {/* Analysis Section - Show skeleton when in processing states */}
                     {hasStarted && (
                         <section

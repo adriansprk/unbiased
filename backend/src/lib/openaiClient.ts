@@ -371,11 +371,18 @@ Your entire output **must be a single, valid JSON object** and nothing else. Thi
 *   **Language Instruction:** Generate all text content (summaries, rationales, explanations) in ${languageInstruction}. All JSON keys, slant category names, and dimension status labels ('Balanced', 'Caution', 'Biased', 'Unknown') MUST remain in English regardless of the response language.
     `;
 
-    const combinedResponse = await openai.chat.completions.create({
+    // Prepare completion options
+    const completionOptions: OpenAI.Chat.ChatCompletionCreateParams = {
       model: config.ai.modelName,
       messages: [{ role: 'user', content: combinedPrompt }],
-      temperature: 0.3, // Lower temperature for more focused, deterministic responses
-    });
+    };
+
+    // Only set temperature if not using o1 models (they only support temperature: 1)
+    if (!config.ai.modelName.startsWith('o1')) {
+      completionOptions.temperature = 0.3; // Lower temperature for more focused, deterministic responses
+    }
+
+    const combinedResponse = await openai.chat.completions.create(completionOptions);
 
     const combinedContent = safelyExtractContent(combinedResponse, 'Failed to generate analysis.');
     const cleanedJSON = extractJsonFromContent(combinedContent);

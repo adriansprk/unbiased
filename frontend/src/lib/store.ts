@@ -17,6 +17,7 @@ interface AnalysisState {
     jobId: string | null;
     jobStatus: string | null;
     errorMessage: string | null;
+    progressMessage: string | null;
     analysisData: AnalysisData | null;
     articleData: ArticleData | null;
     historyItems: HistoryItem[];
@@ -46,6 +47,7 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
     jobId: null,
     jobStatus: null,
     errorMessage: null,
+    progressMessage: null,
     analysisData: null,
     articleData: null,
     historyItems: [], // Start empty to avoid hydration mismatch, load in useEffect
@@ -178,14 +180,12 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
             set({ isFadingIn: false });
         }, 300);
 
-        // Subscribe to job updates
-        setTimeout(() => {
-            logger.debug('Subscribing to job updates for:', newJobId);
-            socketService.subscribeToJob(newJobId, (update) => handleJobUpdate(update, newJobId));
+        // Subscribe to job updates immediately to avoid missing early progress messages
+        logger.debug('Subscribing to job updates for:', newJobId);
+        socketService.subscribeToJob(newJobId, (update) => handleJobUpdate(update, newJobId));
 
-            // Setup periodic status checks as fallback
-            setupPeriodicStatusCheck(newJobId);
-        }, 150);
+        // Setup periodic status checks as fallback
+        setupPeriodicStatusCheck(newJobId);
     },
 
     // Actions
@@ -343,6 +343,7 @@ export const useAnalysisStore = create<AnalysisState>((set, get) => ({
             isLoading: false,
             jobId: null,
             jobStatus: null,
+            progressMessage: null,
             analysisData: null,
             articleData: null,
             errorMessage: null,
@@ -891,9 +892,17 @@ const handleJobUpdate = (update: JobUpdate, jobId: string) => {
         return;
     }
 
-    // If the status hasn't changed, ignore the update
+    // Update progress message if provided (even if status hasn't changed)
+    if (update.progressMessage !== undefined) {
+        logger.info(`[PROGRESS] Updating progress message: "${update.progressMessage}"`);
+        useAnalysisStore.setState({ progressMessage: update.progressMessage });
+        // Log the current state after update
+        logger.info(`[PROGRESS] Progress message set in store: "${useAnalysisStore.getState().progressMessage}"`);
+    }
+
+    // If the status hasn't changed, ignore the rest of the update (but we already updated progressMessage above)
     if (jobStatus === update.status) {
-        logger.debug(`Job status is already ${jobStatus}, ignoring update`);
+        logger.debug(`Job status is already ${jobStatus}, ignoring status update`);
         return;
     }
 
@@ -924,6 +933,8 @@ const handleJobUpdate = (update: JobUpdate, jobId: string) => {
             useAnalysisStore.setState({
                 jobStatus: update.status,
                 errorMessage: null,
+                // Only update progressMessage if provided in the update
+                ...(update.progressMessage !== undefined && { progressMessage: update.progressMessage }),
                 isLoading: true
             });
 
@@ -938,6 +949,8 @@ const handleJobUpdate = (update: JobUpdate, jobId: string) => {
             useAnalysisStore.setState({
                 jobStatus: update.status,
                 errorMessage: null,
+                // Only update progressMessage if provided in the update
+                ...(update.progressMessage !== undefined && { progressMessage: update.progressMessage }),
                 isLoading: true
             });
 
@@ -951,6 +964,7 @@ const handleJobUpdate = (update: JobUpdate, jobId: string) => {
             // Set status and trigger data fetch
             useAnalysisStore.setState({
                 jobStatus: update.status,
+                progressMessage: null, // Clear progress message on completion
                 isLoading: false
             });
 

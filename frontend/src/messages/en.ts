@@ -160,6 +160,16 @@ const messages = {
         preparingAnalysisDesc: 'Once processing begins, we will analyze the article for bias across multiple dimensions.',
         startingAnalysisDesc: 'We will soon begin extracting content from the article for analysis.',
         gatheringContentDesc: 'After content extraction, the AI will analyze the article for factual claims and bias.',
+
+        // Progress messages
+        lookingForArchive: 'Looking for archived version...',
+        checkingIs: 'Checking archive.is...',
+        checkingPh: 'Checking archive.ph...',
+        checkingToday: 'Checking archive.today...',
+        checkingMd: 'Checking archive.md (last attempt)...',
+        readingArchived: 'Reading archived article...',
+        fetchingContent: 'Fetching article content...',
+        analyzingAI: 'Analyzing Bias with AI...',
     },
     // Metadata
     Metadata: {

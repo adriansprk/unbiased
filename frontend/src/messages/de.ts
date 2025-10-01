@@ -160,6 +160,16 @@ const messages = {
         preparingAnalysisDesc: 'Sobald die Verarbeitung beginnt, analysieren wir den Artikel auf Voreingenommenheit in mehreren Dimensionen.',
         startingAnalysisDesc: 'Wir beginnen bald mit der Extraktion von Inhalten aus dem Artikel für die Analyse.',
         gatheringContentDesc: 'Nach der Inhaltsextraktion wird die KI den Artikel auf faktische Behauptungen und Voreingenommenheit analysieren.',
+
+        // Progress messages
+        lookingForArchive: 'Suche nach archivierter Version...',
+        checkingIs: 'Prüfe archive.is...',
+        checkingPh: 'Prüfe archive.ph...',
+        checkingToday: 'Prüfe archive.today...',
+        checkingMd: 'Prüfe archive.md (letzter Versuch)...',
+        readingArchived: 'Lese archivierten Artikel...',
+        fetchingContent: 'Lade Artikelinhalt...',
+        analyzingAI: 'Analysiere Bias mit KI...',
     },
     // Metadata
     Metadata: {

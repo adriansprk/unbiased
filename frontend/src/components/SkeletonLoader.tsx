@@ -138,33 +138,8 @@ interface AnalysisOnlySkeletonLoaderProps {
 export const AnalysisOnlySkeletonLoader: React.FC<AnalysisOnlySkeletonLoaderProps> = ({ status = 'Loading' }) => {
     const t = useTranslations('SkeletonLoader');
 
-    // Get descriptive status message
-    const getStatusMessage = () => {
-        switch (status) {
-            case 'Queued':
-                return t('waitingInQueue');
-            case 'Processing':
-                return t('preparingAnalysis');
-            case 'Fetching':
-                return t('retrievingContent');
-            case 'Analyzing':
-                return '';
-            default:
-                return t('loading');
-        }
-    };
-
     return (
         <div className="space-y-8">
-            {/* Status message with more detail - hide when status is Analyzing or Fetching */}
-            {status !== 'Analyzing' && status !== 'Fetching' && (
-                <div className="text-center space-y-3">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-muted">
-                        <div className="h-3 w-3 rounded-full bg-primary animate-pulse"></div>
-                        <span className="text-sm font-medium">{getStatusMessage()}</span>
-                    </div>
-                </div>
-            )}
 
             {/* Dimension Analysis Skeleton */}
             <div className="bg-card p-6 rounded-lg border border-border animate-pulse">
@@ -195,7 +170,7 @@ export const AnalysisOnlySkeletonLoader: React.FC<AnalysisOnlySkeletonLoaderProp
             </div>
 
             {/* Claims Display Skeleton - Only shown in later stages */}
-            {status === 'Analyzing' || status === 'Complete' ? (
+            {(status === 'Analyzing' || status === 'Complete') && (
                 <div className="bg-card p-6 rounded-lg border border-border animate-pulse">
                     <h3 className="text-lg font-semibold mb-4">{t('factualClaims')}</h3>
                     <div className="space-y-3">
@@ -215,22 +190,6 @@ export const AnalysisOnlySkeletonLoader: React.FC<AnalysisOnlySkeletonLoaderProp
                                 </div>
                             </div>
                         ))}
-                    </div>
-                </div>
-            ) : (
-                // For earlier stages, show a simpler message about what's coming
-                <div className="bg-card p-6 rounded-lg border border-border">
-                    <div className="text-center py-4">
-                        <h3 className="text-lg font-semibold mb-2">
-                            {status === 'Queued' ? t('preparingAnalysisTitle') :
-                                status === 'Processing' ? t('startingAnalysisTitle') :
-                                    t('gatheringContentTitle')}
-                        </h3>
-                        <p className="text-muted-foreground text-sm max-w-md mx-auto">
-                            {status === 'Queued' ? t('preparingAnalysisDesc') :
-                                status === 'Processing' ? t('startingAnalysisDesc') :
-                                    t('gatheringContentDesc')}
-                        </p>
                     </div>
                 </div>
             )}

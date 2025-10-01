@@ -5,9 +5,10 @@ import { useTranslations } from "next-intl"
 
 interface HeroSectionDemoProps {
     urlInputComponent?: React.ReactNode;
+    progressMessage?: string | null;
 }
 
-export function HeroSectionDemo({ urlInputComponent }: HeroSectionDemoProps) {
+export function HeroSectionDemo({ urlInputComponent, progressMessage }: HeroSectionDemoProps) {
     const t = useTranslations('HeroSection');
 
     return (
@@ -19,6 +20,7 @@ export function HeroSectionDemo({ urlInputComponent }: HeroSectionDemoProps) {
             description={t('subtitle')}
             showUrlInput={true}
             urlInputComponent={urlInputComponent}
+            progressMessage={progressMessage}
         />
     )
 } 

@@ -160,6 +160,25 @@ export async function markJobAsFailed(
 }
 
 /**
+ * Emits a progress message without changing the job status
+ * Useful for giving users detailed visibility into long-running operations
+ */
+export async function emitProgressMessage(jobId: string, message: string): Promise<void> {
+  try {
+    const job = await jobsRepository.getJob(jobId);
+    await emitSocketUpdate(jobId, {
+      jobId,
+      status: job.status,
+      progressMessage: message,
+    });
+    logger.info(`Progress message emitted for job ${jobId}: ${message}`);
+  } catch (error) {
+    // Don't throw - progress messages are nice-to-have, not critical
+    logger.warn(`Failed to emit progress message for job ${jobId}:`, error);
+  }
+}
+
+/**
  * Determines if an error is likely transient and should be retried
  * @param error The error to evaluate
  * @returns Boolean indicating if retry is appropriate
@@ -266,19 +285,27 @@ const worker = new Worker(
 
           if (isDomainOnProactiveList(domain)) {
             logger.info(`Domain ${domain} is on proactive list. Attempting to resolve archive snapshot...`);
+            await emitProgressMessage(jobId, 'Looking for archived version...');
+
             const { resolveArchiveSnapshot } = await import('../lib/resolveArchive');
             // Strip query params for better archive.is compatibility
             const cleanUrl = url.replace(/[?#].*$/, '');
-            const archiveUrl = await resolveArchiveSnapshot(cleanUrl);
+
+            // Pass progress callback to get mirror-by-mirror updates
+            const archiveUrl = await resolveArchiveSnapshot(cleanUrl, async (progressMsg) => {
+              await emitProgressMessage(jobId, progressMsg);
+            });
 
             if (archiveUrl && config.firecrawl?.apiKey) {
               // Successfully resolved archive URL, use Firecrawl
               logger.info(`Archive snapshot resolved: ${archiveUrl}. Using Firecrawl.`);
+              await emitProgressMessage(jobId, 'Reading archived article...');
               useFirecrawl = true;
               finalUrl = archiveUrl;
             } else {
               // Archive resolution failed, fall back to Diffbot with cleaned URL (no query params)
               logger.warn(`Archive resolution failed for ${domain}. Falling back to Diffbot with cleaned URL.`);
+              await emitProgressMessage(jobId, 'Fetching article content...');
               useFirecrawl = false;
               finalUrl = cleanUrl;
             }
@@ -472,11 +499,13 @@ const worker = new Worker(
 
         if (useOpenAI) {
           logger.info(`Analyzing content for job ${jobId} with OpenAI...`);
+          await emitProgressMessage(jobId, 'Analyzing with AI...');
 
           // Use OpenAI for analysis
           analysisResults = await performAnalysisWithOpenAI(title, text, language);
         } else {
           logger.info(`Analyzing content for job ${jobId} with Gemini...`);
+          await emitProgressMessage(jobId, 'Analyzing with AI...');
 
           // Use Gemini for analysis (default/primary)
           analysisResults = await performAnalysisWithGemini(title, text, language);

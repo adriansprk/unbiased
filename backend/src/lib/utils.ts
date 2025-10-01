@@ -144,7 +144,9 @@ export function extractDomain(url: string): string {
  * @returns boolean indicating if the domain is on the proactive list
  */
 export function isDomainOnProactiveList(domain: string): boolean {
-  return proactiveArchiveDomains.some((d: string) => domain === d || domain.endsWith(`.${d}`));
+  // Normalize domain by removing www. prefix for matching
+  const normalizedDomain = domain.replace(/^www\./, '');
+  return proactiveArchiveDomains.some((d: string) => normalizedDomain === d || normalizedDomain.endsWith(`.${d}`));
 }
 
 /**

@@ -93,6 +93,7 @@ export const subscribeToJob = (jobId: string, callback: (update: JobUpdate) => v
     // Set up job update listener with enhanced debugging
     socket.on('jobUpdate', (update: JobUpdate) => {
         logger.debug(`Socket: received update:`, update);
+        logger.info(`[SOCKET] Received update - Status: ${update.status}, Progress: "${update.progressMessage}"`);
         logger.trace(`Current job ID: ${jobId}, Update job ID: ${update.jobId}`);
 
         if (update.jobId === jobId) {
@@ -153,23 +154,14 @@ export const unsubscribeFromJob = (): void => {
     }
 
     logger.info('Socket: Unsubscribing from job updates');
-    socket.off('jobUpdate');
-    socket.off('joined');
-    socket.off('subscriptionStatus');
+    // Remove all listeners immediately - no delayed cleanup
+    socket.removeAllListeners('jobUpdate');
+    socket.removeAllListeners('joined');
+    socket.removeAllListeners('subscriptionStatus');
     socket.emit('unsubscribeFromJob');
     activeJobId = null;
     subscriptionVerified = false;
-
-    // Add a small delay to ensure the server has time to process the unsubscribe
-    setTimeout(() => {
-        if (socket) {
-            // Double check that we've removed all listeners
-            socket.removeAllListeners('jobUpdate');
-            socket.removeAllListeners('joined');
-            socket.removeAllListeners('subscriptionStatus');
-            logger.debug('Socket: All job update listeners removed');
-        }
-    }, 100);
+    logger.debug('Socket: All job update listeners removed');
 };
 
 // Disconnect socket when no longer needed

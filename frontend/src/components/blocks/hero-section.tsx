@@ -27,6 +27,7 @@ interface HeroProps {
     actions?: HeroAction[];
     showUrlInput?: boolean;
     urlInputComponent?: React.ReactNode;
+    progressMessage?: string | null;
 }
 
 export function HeroSection({
@@ -36,6 +37,7 @@ export function HeroSection({
     actions,
     showUrlInput,
     urlInputComponent,
+    progressMessage,
 }: HeroProps) {
     return (
         <section
@@ -87,6 +89,16 @@ export function HeroSection({
                     {showUrlInput && urlInputComponent && (
                         <div className="relative z-10 animate-appear opacity-0 delay-300 w-full max-w-2xl">
                             {urlInputComponent}
+                        </div>
+                    )}
+
+                    {/* Progress Message - Show directly below URL input */}
+                    {progressMessage && (
+                        <div className="relative z-10 -mt-2 mb-4">
+                            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-muted/80 backdrop-blur-sm shadow-sm">
+                                <div className="h-3 w-3 rounded-full bg-primary animate-pulse"></div>
+                                <span className="text-sm font-medium">{progressMessage}</span>
+                            </div>
                         </div>
                     )}
 

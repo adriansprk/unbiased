@@ -27,11 +27,12 @@ export async function emitSocketUpdate(
       status: payload.status as JobStatus,
       ...(payload.results && { results: payload.results }),
       ...(payload.error && { error: payload.error }),
+      ...(payload.progressMessage !== undefined && { progressMessage: payload.progressMessage }),
     };
 
     // Publish to Redis
     await redisClient.publish('job-updates', JSON.stringify(updatePayload));
-    logger.info(`Socket update emitted for job ${jobId}: ${updatePayload.status}`);
+    logger.info(`Socket update emitted for job ${jobId}: ${updatePayload.status}${updatePayload.progressMessage ? ` - Progress: "${updatePayload.progressMessage}"` : ''}`);
   } catch (error) {
     logger.error(`Error emitting socket update for job ${jobId}:`, error);
     throw error;

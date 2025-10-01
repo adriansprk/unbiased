@@ -47,12 +47,17 @@ function absolute(host: string, href: string): string {
  * Avoids using /newest/ to prevent bot challenges
  *
  * @param originalUrl - The original URL to find an archive snapshot for
+ * @param onProgress - Optional callback for progress updates
  * @returns The short code archive URL or null if not found
  */
-export async function resolveArchiveSnapshot(originalUrl: string): Promise<string | null> {
+export async function resolveArchiveSnapshot(
+  originalUrl: string,
+  onProgress?: (message: string) => Promise<void>
+): Promise<string | null> {
   logger.debug(`Resolving archive snapshot for: ${originalUrl}`);
 
-  for (const host of MIRRORS) {
+  for (let i = 0; i < MIRRORS.length; i++) {
+    const host = MIRRORS[i];
     const base = `https://${host}`;
     // Use the full URL as archive services expect it
     const listingUrl = `${base}/${originalUrl}`;
@@ -72,6 +77,12 @@ export async function resolveArchiveSnapshot(originalUrl: string): Promise<strin
     try {
       logger.debug(`Trying mirror: ${host} with URL: ${listingUrl}`);
 
+      // Emit progress message about which mirror we're trying
+      if (onProgress) {
+        const mirrorName = host.replace('archive.', '').replace('.is', '').replace('.ph', '').replace('.today', '').replace('.md', '');
+        await onProgress(`Checking ${mirrorName}${i < MIRRORS.length - 1 ? '...' : ' (last attempt)...'}`);
+      }
+
       // 1) Try manual redirect to short code
       const r1 = await axios.get(listingUrl, {
         ...axiosConfig,
@@ -81,7 +92,7 @@ export async function resolveArchiveSnapshot(originalUrl: string): Promise<strin
         timeout: 15000, // 15 second timeout to avoid long waits
       });
 
-      const loc = r1.headers.location || '';
+      const loc = (r1.headers.location as string | undefined) || '';
       if (r1.status >= 300 && r1.status < 400 && SHORT_RE.test(loc)) {
         const resolvedUrl = absolute(host, loc);
         logger.info(`Archive snapshot resolved via redirect: ${resolvedUrl}`);
@@ -89,7 +100,7 @@ export async function resolveArchiveSnapshot(originalUrl: string): Promise<strin
       }
 
       // 2) Got HTML listing → parse first /<code> link (newest)
-      const r2 = await axios.get(listingUrl, {
+      const r2 = await axios.get<string>(listingUrl, {
         ...axiosConfig,
         headers,
         timeout: 15000, // 15 second timeout to avoid long waits

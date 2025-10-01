@@ -236,6 +236,7 @@ export interface JobUpdatePayload {
   status: JobStatus;
   results?: AnalysisResults;
   error?: string;
+  progressMessage?: string; // Optional detailed progress message for user visibility
 }
 
 // API responses

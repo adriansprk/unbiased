@@ -80,4 +80,5 @@ export interface JobUpdate {
     message?: string;
     error?: string;
     errorMessage?: string;
+    progressMessage?: string; // Detailed progress message during long operations
 } 
