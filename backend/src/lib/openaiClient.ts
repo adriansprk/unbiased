@@ -377,10 +377,8 @@ Your entire output **must be a single, valid JSON object** and nothing else. Thi
       messages: [{ role: 'user', content: combinedPrompt }],
     };
 
-    // Only set temperature if not using o1 models (they only support temperature: 1)
-    if (!config.ai.modelName.startsWith('o1')) {
-      completionOptions.temperature = 0.3; // Lower temperature for more focused, deterministic responses
-    }
+    // GPT-5 models do not support the temperature parameter
+    // They only support the default temperature value of 1
 
     const combinedResponse = await openai.chat.completions.create(completionOptions);
 
