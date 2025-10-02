@@ -31,12 +31,12 @@ const publications: Publication[] = [
 const PublicationCarousel: React.FC = () => {
     const apiKey = process.env.NEXT_PUBLIC_LOGO_DEV_API_KEY;
 
-    // Duplicate the publications array for seamless loop
+    // Duplicate the publications array twice for seamless infinite loop
     const duplicatedPublications = [...publications, ...publications];
 
     return (
         <div className="w-full overflow-hidden py-8">
-            <div className="relative flex gap-6 animate-scroll">
+            <div className="relative flex gap-6 animate-scroll-infinite">
                 {duplicatedPublications.map((pub, index) => (
                     <div
                         key={`${pub.domain}-${index}`}
