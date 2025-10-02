@@ -82,6 +82,11 @@ export async function updateJobStatus(
       status,
     };
 
+    // Clear progress message when entering Analyzing state
+    if (status === 'Analyzing') {
+      updatePayload.progressMessage = null;
+    }
+
     // Add results or error if provided
     if (details) {
       if (status === 'Complete') {
@@ -258,10 +263,7 @@ const worker = new Worker(
         );
       }
 
-      // 1. Update job status to Processing
-      await updateJobStatus(jobId, 'Processing');
-
-      // 2. Update status to Fetching before calling content extraction API
+      // 1. Update status to Fetching before calling content extraction API
       await updateJobStatus(jobId, 'Fetching');
 
       // 3. Call content extraction API - Use Firecrawl only for successfully resolved archive URLs
@@ -285,6 +287,8 @@ const worker = new Worker(
 
           if (isDomainOnProactiveList(domain)) {
             logger.info(`Domain ${domain} is on proactive list. Attempting to resolve archive snapshot...`);
+            // Update to Processing status when using Archive.is path (longer operation)
+            await updateJobStatus(jobId, 'Processing');
             await emitProgressMessage(jobId, 'Looking for archived version...');
 
             const { resolveArchiveSnapshot } = await import('../lib/resolveArchive');
@@ -499,14 +503,10 @@ const worker = new Worker(
 
         if (useOpenAI) {
           logger.info(`Analyzing content for job ${jobId} with OpenAI...`);
-          await emitProgressMessage(jobId, 'Analyzing with AI...');
-
           // Use OpenAI for analysis
           analysisResults = await performAnalysisWithOpenAI(title, text, language);
         } else {
           logger.info(`Analyzing content for job ${jobId} with Gemini...`);
-          await emitProgressMessage(jobId, 'Analyzing with AI...');
-
           // Use Gemini for analysis (default/primary)
           analysisResults = await performAnalysisWithGemini(title, text, language);
         }
