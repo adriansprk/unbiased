@@ -163,11 +163,11 @@ const messages = {
 
         // Progress messages
         lookingForArchive: 'Suche nach archivierter Version...',
-        checkingIs: 'Prüfe archive.is...',
-        checkingPh: 'Prüfe archive.ph...',
-        checkingToday: 'Prüfe archive.today...',
-        checkingMd: 'Prüfe archive.md (letzter Versuch)...',
-        readingArchived: 'Lese archivierten Artikel...',
+        checkingIs: 'Durchsuche archive.is...',
+        checkingPh: 'Durchsuche archive.ph...',
+        checkingToday: 'Durchsuche archive.today...',
+        checkingMd: 'Durchsuche archive.md (letzter Versuch)...',
+        readingArchived: 'Lese Artikelinhalte...',
         fetchingContent: 'Lade Artikelinhalt...',
         analyzingAI: 'Analysiere Bias mit KI...',
     },

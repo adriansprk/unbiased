@@ -42,7 +42,7 @@ const PublicationCarousel: React.FC = () => {
 
         let animationFrameId: number;
         let startTime: number | null = null;
-        const duration = window.innerWidth < 768 ? 40000 : 70000; // 40s mobile, 60s desktop
+        const duration = window.innerWidth < 768 ? 80000 : 70000; // 40s mobile, 60s desktop
 
         const animate = (currentTime: number) => {
             if (!startTime) startTime = currentTime;
