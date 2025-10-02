@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface Publication {
@@ -30,13 +30,49 @@ const publications: Publication[] = [
 
 const PublicationCarousel: React.FC = () => {
     const apiKey = process.env.NEXT_PUBLIC_LOGO_DEV_API_KEY;
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const [scrollAmount, setScrollAmount] = useState(0);
 
     // Duplicate the publications array twice for seamless infinite loop
     const duplicatedPublications = [...publications, ...publications];
 
+    useEffect(() => {
+        const scrollContainer = scrollRef.current;
+        if (!scrollContainer) return;
+
+        let animationFrameId: number;
+        let startTime: number | null = null;
+        const duration = window.innerWidth < 768 ? 40000 : 70000; // 40s mobile, 60s desktop
+
+        const animate = (currentTime: number) => {
+            if (!startTime) startTime = currentTime;
+            const elapsed = currentTime - startTime;
+            const progress = (elapsed % duration) / duration;
+
+            // Calculate the width of one set of publications
+            const containerWidth = scrollContainer.scrollWidth / 2;
+            const offset = progress * containerWidth;
+
+            setScrollAmount(offset);
+            animationFrameId = requestAnimationFrame(animate);
+        };
+
+        animationFrameId = requestAnimationFrame(animate);
+
+        return () => {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+        };
+    }, []);
+
     return (
         <div className="w-full overflow-hidden py-8">
-            <div className="relative flex gap-6 animate-scroll-infinite">
+            <div
+                ref={scrollRef}
+                className="flex gap-6 will-change-transform"
+                style={{ transform: `translateX(-${scrollAmount}px)` }}
+            >
                 {duplicatedPublications.map((pub, index) => (
                     <div
                         key={`${pub.domain}-${index}`}

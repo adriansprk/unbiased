@@ -187,25 +187,3 @@
 .fade-bottom {
   mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
 }
-
-/* Publication carousel scroll animation */
-/* Simple infinite scroll: translate by exactly 50% (one full set of publications) */
-@keyframes scroll-infinite {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
-  }
-}
-
-.animate-scroll-infinite {
-  animation: scroll-infinite 30s linear infinite;
-}
-
-/* Faster scroll on mobile */
-@media (max-width: 768px) {
-  .animate-scroll-infinite {
-    animation: scroll-infinite 15s linear infinite;
-  }
-}
