@@ -55,8 +55,8 @@ Unbias allows users to submit a URL of an online article. The backend fetches th
 4.  **Backend Worker:**
     *   Picks up the job from the `analysis-queue`.
     *   Updates job status to 'Processing', then 'Fetching' (updates DB, emits WebSocket update via Redis Pub/Sub).
-    *   Fetches article content using Diffbot API (utilizing Archive.is for specified domains).
-    *   **Parses Diffbot Output & Stores Optimized Data:**
+    *   Fetches article content using strategic approach: Archive.is snapshots via Firecrawl (for paywalled domains) or Diffbot API (fallback).
+    *   **Parses Content & Stores Optimized Data:**
         *   Extracts `article_title`, `article_text` (main content for LLM), `article_author`, `article_source_name`, `article_canonical_url`, `article_preview_image_url` (selected best image), and `article_publication_date`.
         *   Stores these in their new dedicated columns in the `jobs` table.
         *   Stores other minimal, non-bulky Diffbot metadata into the `job_details` JSONB column (full HTML is no longer stored here).
@@ -105,7 +105,8 @@ graph LR
         API -->|"202 Accepted (New Job ID)"| FE
 
         Q -->|"Job"| Worker["Background Worker"]
-        Worker -->|"Fetch/Parse (Diffbot, Archive.is)"| ExtService["External Services: Diffbot"]
+        Worker -->|"Resolve Archive.is Snapshot (ScraperAPI)"| ExtService["External Services: ScraperAPI"]
+        Worker -->|"Fetch Content (Firecrawl or Diffbot)"| ExtService2["External Services: Firecrawl/Diffbot"]
         Worker -->|"Store Optimized Article Data (New Columns + Min. job_details)"| DB
         Worker -->|"Get Title/Text for LLM"| DB
         DB -->|"Title/Text"| Worker
@@ -125,6 +126,7 @@ graph LR
     style Worker fill:#lavenderblush,stroke:#333
     style DB fill:#lightblue,stroke:#333
     style ExtService fill:#whitesmoke,stroke:#333
+    style ExtService2 fill:#whitesmoke,stroke:#333
     style ExtService_AI fill:#whitesmoke,stroke:#333
     style RedisPubSub fill:#mistyrose,stroke:#333
     style CF fill:#f0f8ff,stroke:#333
@@ -137,8 +139,8 @@ The application follows a distributed core architecture:
 
 -   **Frontend**: Next.js application (Zustand for state, next-intl for i18n). Handles UI, URL submission, Turnstile verification, real-time status display, results viewing, history, publication carousel, and **displaying shared analyses via a new route (`/analysis/[jobId]`)**.
 -   **Backend API**: Node.js/Express.js server. Handles API requests (including **Turnstile verification and logic for analysis reuse in `/api/submit`**), WebSocket management (Socket.IO + Redis Pub/Sub), DB interaction, and job queuing. The `/api/status/:jobId` endpoint is enhanced to serve data for shared links.
--   **Background Worker**: Node.js process. Listens to BullMQ, performs analysis (Diffbot -> Gemini/OpenAI), **parses Diffbot output to store optimized data in new dedicated DB columns and minimal `job_details`**, updates DB, and emits status updates.
--   **Database**: Supabase (PostgreSQL). Stores job info, status, **optimized article data (`article_title`, `article_text`, `article_preview_image_url`, etc. in dedicated columns), `normalized_url` for reuse checks, minimal `job_details` (other Diffbot metadata)**, `analysis_results`, and errors.
+-   **Background Worker**: Node.js process. Listens to BullMQ, performs analysis (ScraperAPI for Archive.is resolution → Firecrawl for paywalled content or Diffbot fallback → Gemini/OpenAI), **parses content to store optimized data in new dedicated DB columns and minimal `job_details`**, updates DB, and emits status updates.
+-   **Database**: Supabase (PostgreSQL). Stores job info, status, **optimized article data (`article_title`, `article_text`, `article_preview_image_url`, etc. in dedicated columns), `normalized_url` for reuse checks, minimal `job_details` (fetch metadata)**, `analysis_results`, and errors.
 -   **Job Queue**: BullMQ (Redis) for asynchronous analysis.
 -   **Real-time Communication**: WebSockets (Socket.IO + Redis Pub/Sub).
 -   **Security**: Cloudflare Turnstile for bot protection, with seamless user experience.
@@ -151,6 +153,7 @@ The application follows a distributed core architecture:
 -   Supabase Account (Project URL and Service Key)
 -   Google Gemini API Key (primary) and/or OpenAI API Key (fallback)
 -   Diffbot API Token
+-   Firecrawl API Key (for fetching archived content from Archive.is)
 -   Cloudflare Turnstile Account (Site Key and Secret Key)
 -   Redis instance
 -   Logo.dev API Key (for publication logos)
@@ -247,8 +250,9 @@ For more detailed frontend setup instructions, environment variables, and compon
 -   **Socket.IO**: Real-time bidirectional event-based communication (WebSockets v4.x).
 -   **Google Gemini API**: Primary AI service for text analysis (v1.x, Model: gemini-2.0-flash-exp).
 -   **OpenAI API**: Fallback AI service for text analysis (SDK v4.x, Model: gpt-4o).
--   **Diffbot API**: For robust article content extraction.
--   **Firecrawl**: Alternative content extraction (via @mendable/firecrawl-js v4.x).
+-   **Diffbot API**: For robust article content extraction (fallback strategy).
+-   **Firecrawl**: Primary content extraction from Archive.is snapshots for paywalled domains (via @mendable/firecrawl-js v4.x).
+-   **ScraperAPI**: For resolving Archive.is snapshot URLs to bypass rate limits.
 -   **Mozilla Readability**: Content parsing and cleanup.
 -   **Cloudflare Turnstile**: Bot protection service with seamless user experience.
 -   **Logo.dev**: API for publication logo retrieval.
@@ -274,7 +278,18 @@ The store module (`frontend/src/lib/store.ts`) centralizes logic for API calls, 
 
 ## Content Fetching Strategy
 
-To handle paywalls and improve content extraction reliability for certain domains (e.g., major news publications), the backend implements a proactive archiving strategy. For domains listed in `backend/src/config/index.ts` (`proactiveArchiveDomains` - currently **50 major publications** across US, UK, Germany, France, Italy, Spain, and international sources), it attempts to fetch content via `Archive.is` before sending the URL to Diffbot. The system also includes fallback strategies using Firecrawl and Mozilla Readability for enhanced content extraction. This is recorded in the `job_details` under `fetchStrategy` and `isArchiveContent`.
+To handle paywalls and improve content extraction reliability for certain domains (e.g., major news publications), the backend implements a strategic multi-tier fetching approach:
+
+1. **Archive.is with Firecrawl**: For domains listed in `backend/src/config/index.ts` (`proactiveArchiveDomains` - currently **50 major publications** across US, UK, Germany, France, Italy, Spain, and international sources), the system:
+   - First resolves the latest Archive.is snapshot of the article URL via ScraperAPI
+   - Then uses **Firecrawl** to extract clean, structured content from the Archive.is snapshot
+   - This bypasses paywalls while maintaining reliable content extraction
+
+2. **Diffbot Fallback**: If archive resolution fails or the domain is not in the proactive list, the system falls back to Diffbot's standard content extraction
+
+3. **Mozilla Readability**: Additional fallback parsing for enhanced content extraction when needed
+
+The chosen strategy is recorded in `job_details` under `fetchStrategy` and `isArchiveContent` for transparency.
 
 ## License
 
