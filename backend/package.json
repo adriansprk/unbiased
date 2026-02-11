@@ -64,7 +64,7 @@
     "@mendable/firecrawl-js": "^4.3.7",
     "@mozilla/readability": "^0.6.0",
     "@supabase/supabase-js": "^2.39.7",
-    "axios": "^1.6.7",
+    "axios": "^1.13.5",
     "bullmq": "^5.1.1",
     "cheerio": "^1.1.2",
     "cors": "^2.8.5",
