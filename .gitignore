@@ -83,5 +83,6 @@ ai/stories/story-SEC-*.md
 
 # Claude
 claude.md
-.claude/
+.claude/*
+!.claude/settings.json
 extracted-content-samples

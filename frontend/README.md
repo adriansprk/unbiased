@@ -35,7 +35,6 @@ frontend/
 │   │   │   │       └── page.tsx # New: Page for displaying a shared analysis
 │   │   │   ├── page.tsx      # Main page component for the application
 │   │   │   └── layout.tsx    # Locale-specific layout component
-│   │   ├── page.tsx          # Root redirect page
 │   │   ├── layout.tsx        # Root layout component
 │   │   └── globals.css       # Global CSS and Tailwind directives
 │   ├── components/           # React components
