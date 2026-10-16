@@ -106,8 +106,8 @@ describe('contentExtractor', () => {
       const result = trimHighLinkDensityTail(html);
       expect(result).toContain('main article content');
       expect(result).toContain('More article content');
-      // Function should at least preserve the article content
-      expect(result.length).toBeGreaterThan(0);
+      expect(result).not.toContain('Link 1');
+      expect(result).toContain('</article>');
     });
 
     it('should keep article content with normal link density', () => {
@@ -118,8 +118,7 @@ describe('contentExtractor', () => {
         </article>
       `;
       const result = trimHighLinkDensityTail(html);
-      expect(result).toContain('recent study');
-      expect(result).toContain('University X');
+      expect(result).toBe(html.trim());
     });
   });
 
@@ -134,17 +133,9 @@ describe('contentExtractor', () => {
       expect(result).toContain('Entertainer Kling');
     });
 
-    it('should remove standalone HTML tag names', () => {
-      // More realistic input matching the actual problem
-      const input = 'Entertainer Kling: »Wie absurd ist das denn?« p Foto: Sven Hagolani / Carlsen div Zwei Milliardäre';
-      const result = cleanTextArtifacts(input);
-
-      // Should not have standalone tag names surrounded by spaces
-      expect(result).not.toMatch(/\s+p\s+/);
-      expect(result).not.toMatch(/\s+div\s+/);
-      expect(result).toContain('Entertainer Kling');
-      expect(result).toContain('Foto: Sven Hagolani');
-      expect(result).toContain('Zwei Milliardäre');
+    it('should keep real words that match HTML tag names', () => {
+      const input = 'The committee reviewed Section 4 over a span of two weeks; the p value was low.';
+      expect(cleanTextArtifacts(input)).toBe(input);
     });
 
     it('should handle HTML entities', () => {

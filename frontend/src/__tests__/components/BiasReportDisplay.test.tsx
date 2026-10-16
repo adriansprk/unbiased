@@ -61,7 +61,7 @@ describe('BiasReportDisplay Component', () => {
     });
 
     // Skip this test as it's not reliable in the test environment
-    it.skip('scrolls to active dimension when it changes', () => {
+    it('scrolls to active dimension when it changes', () => {
         // Clear mock calls before test
         mockScrollIntoView.mockClear();
 

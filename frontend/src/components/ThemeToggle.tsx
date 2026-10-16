@@ -2,16 +2,12 @@
 
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
+import { useSyncExternalStore } from "react";
 
 export function ThemeToggle() {
-    const [mounted, setMounted] = useState(false);
+    // false during SSR and hydration, true on the client: the theme is only known client-side
+    const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
     const { resolvedTheme, setTheme } = useTheme();
-
-    // useEffect only runs on the client, so now we can safely show the UI
-    useEffect(() => {
-        setMounted(true);
-    }, []);
 
     // Render a placeholder button with the same dimensions to prevent layout shift
     if (!mounted) {

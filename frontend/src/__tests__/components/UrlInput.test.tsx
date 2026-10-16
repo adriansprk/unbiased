@@ -1,6 +1,6 @@
 import { screen, fireEvent, waitFor } from '@testing-library/react';
 import UrlInput from '@/components/UrlInput';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import '@testing-library/jest-dom';
 import { renderWithI18n } from '../utils/test-utils';
 import { Button } from '@/components/ui/button';
@@ -26,31 +26,10 @@ vi.mock('@/components/ui/button', () => ({
     ),
 }));
 
-vi.mock('@/components/ui/form', () => ({
-    Form: ({ children, ...props }: React.PropsWithChildren<any>) => (
-        <div data-testid="mock-form" {...props}>
-            {children}
-        </div>
-    ),
-    FormControl: ({ children, ...props }: React.PropsWithChildren<any>) => (
-        <div data-testid="mock-form-control" {...props}>
-            {children}
-        </div>
-    ),
-    FormField: ({ render, ...props }: any) => render({ field: { onChange: vi.fn(), value: '' } }),
-    FormItem: ({ children, ...props }: React.PropsWithChildren<any>) => (
-        <div data-testid="mock-form-item" {...props}>
-            {children}
-        </div>
-    ),
-    FormMessage: () => <div data-testid="mock-form-message" />,
-}));
-
 // Mock the API service
+const mockSubmitUrl = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/apiClient', () => ({
-    default: {
-        submitUrl: vi.fn(),
-    },
+    api: { submitUrl: mockSubmitUrl },
 }));
 
 // Mock the store
@@ -128,44 +107,13 @@ vi.mock('next-intl', () => ({
 }));
 
 // Mock useForm
-vi.mock('react-hook-form', () => ({
-    useForm: () => ({
-        register: vi.fn(),
-        handleSubmit: vi.fn(fn => fn),
-        formState: { errors: {}, isSubmitting: false },
-        control: {},
-        reset: vi.fn(),
-        clearErrors: vi.fn(),
-        watch: vi.fn(),
-        getValues: vi.fn(),
-        setValue: vi.fn(),
-        setError: vi.fn(),
-        trigger: vi.fn(),
-        setFocus: vi.fn(),
-        resetField: vi.fn(),
-        unregister: vi.fn(),
-        getFieldState: vi.fn(),
-        formControl: vi.fn(),
-        subscribe: vi.fn(),
-    }),
-    Controller: ({ render }: any) => render({
-        field: {
-            onChange: vi.fn(),
-            value: '',
-            ref: vi.fn(),
-        },
-        fieldState: { invalid: false, error: undefined },
-        formState: { errors: {} }
-    }),
-    ControllerRenderProps: vi.fn(),
-}));
 
 describe('UrlInput', () => {
     const onSubmitSuccess = vi.fn();
 
     // Reset mocks before each test
     beforeEach(() => {
-        vi.resetAllMocks();
+        vi.clearAllMocks();
         onSubmitSuccess.mockReset();
     });
 
@@ -216,57 +164,38 @@ describe('UrlInput', () => {
         expect(screen.getByText('Try Again')).toBeInTheDocument();
     });
 
-    // This test is skipped because form submission is hard to test reliably
-    it.skip('handles successful URL submission', async () => {
-        // Create a mock for onSubmitSuccess that we can verify
-        const onSubmitSuccess = vi.fn();
-
-        const { container } = renderWithI18n(<UrlInput onSubmitSuccess={onSubmitSuccess} isLoading={false} jobStatus={null} />);
-
-        // Get input and form
-        const input = screen.getByTestId('mock-input');
-        const form = container.querySelector('form');
-        expect(form).not.toBeNull(); // Ensure form exists
-
-        // Enter valid URL
-        fireEvent.change(input, { target: { value: 'https://example.com/article' } });
-
-        // Submit the form
-        if (form) {
-            fireEvent.submit(form);
-        }
-
-        // Check that onSubmitSuccess was called with the URL
-        expect(onSubmitSuccess).toHaveBeenCalledWith('https://example.com/article');
-    });
-
-    // This test is skipped because form submission is hard to test reliably
-    it.skip('shows error message when API call fails', async () => {
-        // Create a mock that will throw an error
-        const onSubmitSuccess = vi.fn().mockImplementation(() => {
-            throw new Error('Network error');
+    describe('submission (development mode, no Turnstile)', () => {
+        beforeEach(() => {
+            vi.stubEnv('NODE_ENV', 'development');
+            mockSubmitUrl.mockReset();
+        });
+        afterEach(() => {
+            vi.unstubAllEnvs();
         });
 
-        const { container } = renderWithI18n(<UrlInput onSubmitSuccess={onSubmitSuccess} isLoading={false} jobStatus={null} />);
+        const submit = (url: string, onSubmitSuccess = vi.fn()) => {
+            const { container } = renderWithI18n(<UrlInput onSubmitSuccess={onSubmitSuccess} isLoading={false} jobStatus={null} />);
+            fireEvent.change(screen.getByTestId('mock-input'), { target: { value: url } });
+            fireEvent.submit(container.querySelector('form')!);
+            return onSubmitSuccess;
+        };
 
-        // Get the form and input
-        const input = screen.getByTestId('mock-input');
-        const form = container.querySelector('form');
-        expect(form).not.toBeNull(); // Ensure form exists
+        it('submits the URL and reports success', async () => {
+            mockSubmitUrl.mockResolvedValue({ data: { jobId: 'job-1' } });
 
-        // Enter a valid URL and submit
-        fireEvent.change(input, { target: { value: 'https://example.com' } });
+            const onSubmitSuccess = submit('https://example.com/article');
 
-        if (form) {
-            fireEvent.submit(form);
-        }
+            await waitFor(() => expect(onSubmitSuccess).toHaveBeenCalledWith('https://example.com/article'));
+            expect(mockSubmitUrl).toHaveBeenCalledWith('https://example.com/article', 'en', undefined);
+        });
 
-        // Check onSubmitSuccess was called
-        expect(onSubmitSuccess).toHaveBeenCalledWith('https://example.com');
+        it('shows the error and does not report success when the API call fails', async () => {
+            mockSubmitUrl.mockRejectedValue(new Error('Network error'));
 
-        // Check error message is displayed
-        await waitFor(() => {
-            expect(screen.getByText('Failed to submit URL. Please try again.')).toBeInTheDocument();
+            const onSubmitSuccess = submit('https://example.com');
+
+            expect(await screen.findByText('Network error')).toBeInTheDocument();
+            expect(onSubmitSuccess).not.toHaveBeenCalled();
         });
     });
 });

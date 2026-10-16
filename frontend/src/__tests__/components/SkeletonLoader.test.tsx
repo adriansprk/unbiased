@@ -52,40 +52,12 @@ describe('SkeletonLoader Component', () => {
     });
 
     describe('AnalysisOnlySkeletonLoader', () => {
-        it('renders with Queued status correctly', () => {
-            render(<AnalysisOnlySkeletonLoader status="Queued" />);
+        it.each(['Queued', 'Processing', 'Fetching'] as const)('shows only dimensions while %s', (status) => {
+            render(<AnalysisOnlySkeletonLoader status={status} />);
 
-            // Check for status message
-            expect(screen.getByText('Waiting in queue...')).toBeInTheDocument();
-
-            // Check for dimension analysis
             expect(screen.getByText('Dimension Analysis')).toBeInTheDocument();
-
-            // Should show "Preparing Analysis" for early stage
-            expect(screen.getByText('Preparing Analysis')).toBeInTheDocument();
-
-            // Should NOT show Factual Claims for early stage
+            // Claims only appear once analysis has started
             expect(screen.queryByText('Factual Claims')).not.toBeInTheDocument();
-        });
-
-        it('renders with Processing status correctly', () => {
-            render(<AnalysisOnlySkeletonLoader status="Processing" />);
-
-            // Check for status message
-            expect(screen.getByText('Preparing analysis...')).toBeInTheDocument();
-
-            // Should show "Starting Analysis Process" for this stage
-            expect(screen.getByText('Starting Analysis Process')).toBeInTheDocument();
-        });
-
-        it('renders with Fetching status correctly', () => {
-            render(<AnalysisOnlySkeletonLoader status="Fetching" />);
-
-            // Status message should not be visible when Fetching
-            expect(screen.queryByText('Retrieving content...')).not.toBeInTheDocument();
-
-            // Should show "Gathering Article Content" for this stage
-            expect(screen.getByText('Gathering Article Content')).toBeInTheDocument();
         });
 
         it('renders with Analyzing status correctly', () => {

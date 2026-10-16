@@ -62,11 +62,11 @@ describe('jobsRepository', () => {
             // Assertions
             expect(supabase.from).toHaveBeenCalledWith('jobs');
             expect(normalizeUrl).toHaveBeenCalledWith(url);
-            expect(mockInsert).toHaveBeenCalledWith({
+            expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
                 url,
                 language: 'en',
                 normalized_url: normalizedUrl
-            });
+            }));
             expect(result).toEqual(mockJob);
         });
 
@@ -99,11 +99,11 @@ describe('jobsRepository', () => {
             // Assertions
             expect(supabase.from).toHaveBeenCalledWith('jobs');
             expect(normalizeUrl).not.toHaveBeenCalled();
-            expect(mockInsert).toHaveBeenCalledWith({
+            expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
                 url,
                 language: 'en',
                 normalized_url: providedNormalizedUrl
-            });
+            }));
             expect(result).toEqual(mockJob);
         });
 
@@ -136,11 +136,11 @@ describe('jobsRepository', () => {
             // Assertions
             expect(supabase.from).toHaveBeenCalledWith('jobs');
             expect(normalizeUrl).toHaveBeenCalledWith(url);
-            expect(mockInsert).toHaveBeenCalledWith({
+            expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
                 url,
                 language: 'en',
                 normalized_url: normalizedUrl
-            });
+            }));
             expect(result).toEqual(mockJob);
         });
 

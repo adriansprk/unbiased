@@ -128,35 +128,41 @@ export function trimAtSentinels(text: string): string {
 export function trimHighLinkDensityTail(html: string): string {
   if (!html) return html;
 
-  // Split on common block-level closing tags
-  const blocks = html.split(/<\/(p|div|section|article|ul|ol|aside)>/i);
-  let keepUntil = blocks.length;
+  // Split after common block-level closing tags, keeping each tag with its block
+  const blocks = html.split(/(?<=<\/(?:p|div|section|article|ul|ol|aside)>)/i);
+  const kept = [...blocks];
 
   // Walk from bottom, remove blocks with suspiciously high link density
   for (let i = blocks.length - 1; i >= 0; i--) {
-    const block = blocks[i] || '';
+    const block = blocks[i];
 
     // Count words (rough approximation)
     const textContent = block.replace(/<[^>]+>/g, ' ');
     const words = (textContent.match(/\w+/g) || []).length;
 
-    // Count links
-    const links = (block.match(/<a\b/gi) || []).length;
+    // Count words inside links
+    const linkText = (block.match(/<a\b[^>]*>[\s\S]*?<\/a>/gi) || []).join(' ').replace(/<[^>]+>/g, ' ');
+    const linkWords = (linkText.match(/\w+/g) || []).length;
+    const hasLinks = /<a\b/i.test(block);
 
-    // Calculate link density
-    const density = words > 0 ? links / words : links > 0 ? 1 : 0;
+    // Closing wrappers and whitespace carry no signal; keep them and look further up
+    if (words === 0 && !hasLinks) {
+      continue;
+    }
 
-    // Heuristic: navigation/footer blocks are short and linky
-    // If block has < 80 words and > 8% of content is links, it's likely not article content
-    if (words < 80 && density > 0.08) {
-      keepUntil = i;
+    // Share of the block's text that is link text
+    const density = words > 0 ? linkWords / words : 1;
+
+    // Heuristic: navigation/footer blocks are short and mostly link text
+    if (words < 80 && density > 0.5) {
+      kept[i] = '';
     } else {
       // Once we hit a block that looks like article content, stop trimming
       break;
     }
   }
 
-  return blocks.slice(0, keepUntil).join('</div>').trim();
+  return kept.join('').trim();
 }
 
 /**
@@ -185,19 +191,6 @@ export function cleanTextArtifacts(text: string): string {
   // Remove common social media sharing text from the beginning (multiple occurrences)
   const socialMediaPattern = /^(?:X\.com|Facebook|Twitter|LinkedIn|WhatsApp|E-Mail|Share|Teilen|Reddit|Pinterest)(?:\s+(?:X\.com|Facebook|Twitter|LinkedIn|WhatsApp|E-Mail|Share|Teilen|Reddit|Pinterest))*\s+/i;
   cleaned = cleaned.replace(socialMediaPattern, '');
-
-  // Remove sequences of HTML tag names that weren't properly converted
-  cleaned = cleaned.replace(/\b(p|div|section|article|span|ul|ol|li|h1|h2|h3|h4|h5|h6|aside|nav|header|footer|blockquote|pre|code|table|tbody|thead|tr|td|th|dl|dt|dd|figure|figcaption)(\s+\1)+/gi, '');
-
-  // Remove standalone HTML tag names at end of lines
-  cleaned = cleaned.replace(/\s+(p|div|section|article|span|ul|ol|li|aside|nav|header|footer)\s*$/gm, '');
-
-  // Remove standalone HTML tag names at start of lines
-  cleaned = cleaned.replace(/^\s*(p|div|section|article|span|ul|ol|li|aside|nav|header|footer)\s+/gm, '');
-
-  // Remove standalone HTML tag names in the middle (word boundaries)
-  // Must be surrounded by spaces to avoid matching words like "div" in "dividend"
-  cleaned = cleaned.replace(/\s+(p|div|section|ul|ol|li|span)\s+/gi, ' ');
 
   // Remove &nbsp; entities
   cleaned = cleaned.replace(/&nbsp;/g, ' ');

@@ -85,6 +85,7 @@ const UrlInput: React.FC<UrlInputProps> = ({ onSubmitSuccess, isLoading: externa
             const storedToken = sessionStorage.getItem(TURNSTILE_TOKEN_STORAGE_KEY);
             if (storedToken) {
                 logger.debug("[UrlInput] Found stored Turnstile token, length:", storedToken.length);
+                // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs Turnstile token with sessionStorage/widget
                 setTurnstileToken(storedToken);
                 updateTurnstileVisibility(false);
             } else {
@@ -109,6 +110,7 @@ const UrlInput: React.FC<UrlInputProps> = ({ onSubmitSuccess, isLoading: externa
             // The token will be reset on the next submission
             if (jobStatus === "Failed") {
                 // Only reset token for Failed state
+                // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs Turnstile token with sessionStorage/widget
                 setTurnstileToken(null);
                 try {
                     sessionStorage.removeItem(TURNSTILE_TOKEN_STORAGE_KEY);
@@ -144,6 +146,7 @@ const UrlInput: React.FC<UrlInputProps> = ({ onSubmitSuccess, isLoading: externa
         if (shouldResetUrlInput) {
             logger.debug("Resetting URL form due to store signal");
             form.reset();
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs Turnstile token with sessionStorage/widget
             setTurnstileToken(null);
             setTurnstileError(null);
 
@@ -447,6 +450,7 @@ const UrlInput: React.FC<UrlInputProps> = ({ onSubmitSuccess, isLoading: externa
     return (
         <div className="w-full max-w-3xl mx-auto">
             <Form {...form}>
+                {/* eslint-disable-next-line react-hooks/refs -- false positive: react-hook-form's handleSubmit doesn't read refs during render */}
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                     <FormField
                         control={form.control}

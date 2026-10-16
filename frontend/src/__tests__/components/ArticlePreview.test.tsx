@@ -22,8 +22,13 @@ vi.mock('next/image', () => ({
             className={className}
             data-priority={priority}
             data-testid="mock-image"
+            onError={onError}
         />
     }
+}));
+
+vi.mock('next-intl', () => ({
+    useTranslations: () => (key: string) => ({ imageUnavailable: 'Image unavailable' } as Record<string, string>)[key] ?? key,
 }));
 
 // Mock the Card components
@@ -79,9 +84,7 @@ describe('ArticlePreview Component', () => {
         expect(screen.getByText('example.com/minimal')).toBeInTheDocument();
     });
 
-    // The image error handler doesn't work as expected in the test environment,
-    // so we'll skip this test
-    it.skip('handles image errors', () => {
+    it('handles image errors', () => {
         const mockArticle: ArticleData = {
             title: 'Image Error Test',
             imageUrl: 'https://bad-url.com/image.jpg'

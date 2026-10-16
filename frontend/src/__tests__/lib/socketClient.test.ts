@@ -66,8 +66,9 @@ describe('socketClient', () => {
     it('unsubscribeFromJob removes the jobUpdate listener', () => {
         unsubscribeFromJob();
 
-        // Should remove the jobUpdate listener
-        expect(mockSocket.off).toHaveBeenCalledWith('jobUpdate');
+        // Should remove the jobUpdate listener and leave the server-side room
+        expect(mockSocket.removeAllListeners).toHaveBeenCalledWith('jobUpdate');
+        expect(mockSocket.emit).toHaveBeenCalledWith('unsubscribeFromJob');
     });
 
     it('disconnectSocket disconnects the socket', () => {

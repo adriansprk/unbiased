@@ -210,13 +210,14 @@ describe('createMinimalMetadata', () => {
         };
 
         const result = createMinimalMetadata(input);
-        expect(result).toHaveProperty('title', 'Test Article');
-        expect(result).toHaveProperty('language', 'en');
-        expect(result).toHaveProperty('tags');
-        expect(result).toHaveProperty('sentiment', 0.5);
-        expect(result).toHaveProperty('type', 'article');
-        expect(result).toHaveProperty('publisherCountry', 'US');
-        expect(result).toHaveProperty('estimatedDate', '2023-01-01');
-        expect(result).toHaveProperty('humanLanguage', 'english');
+        expect(result).toEqual({
+            language: 'en',
+            sentiment: 0.5,
+            type: 'article',
+            publisherCountry: 'US',
+            humanLanguage: 'english'
+        });
+        // Title, tags and dates live in dedicated job columns, not job_details
+        expect(result).not.toHaveProperty('title');
     });
 }); 

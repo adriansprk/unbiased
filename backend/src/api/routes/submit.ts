@@ -3,7 +3,7 @@ import { z } from 'zod';
 import axios from 'axios';
 import { jobsRepository } from '../../db/jobsRepository';
 import { addAnalysisJob } from '../../queues/analysisQueue';
-import { extractDomain, normalizeUrl } from '../../lib/utils';
+import { extractDomain, normalizeUrl, getProxiedImageUrl, selectPreviewImage } from '../../lib/utils';
 import logger from '../../lib/logger';
 import config from '../../config';
 import { extractUrlMetadata } from '../../lib/metadataExtractor';
@@ -200,8 +200,11 @@ export async function submitHandler(req: Request, res: Response) {
                         (fullJobDetails.job_details?.siteName || null),
                     article_canonical_url: fullJobDetails.article_canonical_url ||
                         (fullJobDetails.job_details?.url || fullJobDetails.url || null),
-                    article_preview_image_url: fullJobDetails.article_preview_image_url ||
-                        (fullJobDetails.job_details?.images?.[0]?.url || null),
+                    // Same image selection and proxying as /api/status, so next/image can load it
+                    article_preview_image_url: getProxiedImageUrl(
+                        fullJobDetails.article_preview_image_url ||
+                        selectPreviewImage(fullJobDetails.job_details?.images) || ''
+                    ) || null,
                     article_publication_date: fullJobDetails.article_publication_date ||
                         (fullJobDetails.job_details?.date || null),
                     // Optional: Include article_text only if not too large

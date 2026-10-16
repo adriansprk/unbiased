@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 
 export interface ArticleData {
     title?: string;
@@ -19,6 +20,7 @@ interface ArticlePreviewProps {
 
 const ArticlePreview: React.FC<ArticlePreviewProps> = ({ article }) => {
     const { title, author, imageUrl, description, url } = article;
+    const t = useTranslations('AnalysisCard');
     const [imageError, setImageError] = useState(false);
 
     const handleImageError = () => {
@@ -63,7 +65,7 @@ const ArticlePreview: React.FC<ArticlePreviewProps> = ({ article }) => {
                     {/* Fallback for image errors */}
                     {imageError && (
                         <div className="w-full h-48 bg-gray-200 dark:bg-gray-700 rounded-t-lg flex items-center justify-center">
-                            <span className="text-muted-foreground">Image unavailable</span>
+                            <span className="text-muted-foreground">{t('imageUnavailable')}</span>
                         </div>
                     )}
 

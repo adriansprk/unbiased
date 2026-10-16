@@ -385,20 +385,15 @@ Your entire output **must be a single, valid JSON object** and nothing else. Thi
     const combinedContent = safelyExtractContent(combinedResponse, 'Failed to generate analysis.');
     const cleanedJSON = extractJsonFromContent(combinedContent);
 
-    try {
-      // Parse the cleaned JSON into a complete analysis results object
-      const parsedResults = cleanedJSON;
-
-      return {
-        claims: parsedResults?.claims || '',
-        report: parsedResults?.report || '',
-        slant: parsedResults?.slant || '',
-      };
-    } catch (parseError) {
-      const errorMessage = `OpenAI API error: Failed to parse combined analysis response - ${parseError instanceof Error ? parseError.message : 'Unknown error'}`;
-      logger.error(errorMessage);
-      throw new Error(errorMessage);
+    if (!cleanedJSON) {
+      throw new Error('Failed to parse combined analysis response');
     }
+
+    return {
+      claims: cleanedJSON.claims || '',
+      report: cleanedJSON.report || '',
+      slant: cleanedJSON.slant || '',
+    };
   } catch (error) {
     // Handle errors with useful information
     let errorMessage = 'Unknown error during OpenAI analysis';

@@ -22,7 +22,9 @@ vi.mock('../../../queues/analysisQueue', () => ({
 
 vi.mock('../../../lib/utils', () => ({
     extractDomain: vi.fn().mockReturnValue('example.com'),
-    normalizeUrl: vi.fn(url => url) // Default to returning the same URL
+    normalizeUrl: vi.fn(url => url), // Default to returning the same URL
+    getProxiedImageUrl: vi.fn(url => (url ? `proxy:${url}` : '')),
+    selectPreviewImage: vi.fn(images => images?.[0]?.url)
 }));
 
 vi.mock('../../../config', () => ({
@@ -215,12 +217,13 @@ describe('Submit Handler', () => {
         await submitHandler(mockRequest as Request, mockResponse as Response);
 
         expect(utils.normalizeUrl).toHaveBeenCalledWith(originalUrl);
-        expect(jobsRepository.createJob).toHaveBeenCalledWith(originalUrl, 'en', normalizedUrl);
+        expect(jobsRepository.createJob).toHaveBeenCalledWith(originalUrl, 'en', normalizedUrl, expect.any(Object));
         expect(addAnalysisJob).toHaveBeenCalledWith(mockJob.id, mockJob.url, mockJob.language);
         expect(statusMock).toHaveBeenCalledWith(201);
         expect(jsonMock).toHaveBeenCalledWith({
             message: 'Analysis job submitted successfully',
-            jobId: mockJob.id
+            jobId: mockJob.id,
+            metadata: expect.any(Object)
         });
     });
 
@@ -233,12 +236,13 @@ describe('Submit Handler', () => {
         await submitHandler(mockRequest as Request, mockResponse as Response);
 
         expect(utils.normalizeUrl).toHaveBeenCalledWith(originalUrl);
-        expect(jobsRepository.createJob).toHaveBeenCalledWith(originalUrl, 'de', normalizedUrl);
+        expect(jobsRepository.createJob).toHaveBeenCalledWith(originalUrl, 'de', normalizedUrl, expect.any(Object));
         expect(addAnalysisJob).toHaveBeenCalledWith(mockJob.id, mockJob.url, mockJob.language);
         expect(statusMock).toHaveBeenCalledWith(201);
         expect(jsonMock).toHaveBeenCalledWith({
             message: 'Analysis job submitted successfully',
-            jobId: mockJob.id
+            jobId: mockJob.id,
+            metadata: expect.any(Object)
         });
     });
 
@@ -254,12 +258,13 @@ describe('Submit Handler', () => {
         await submitHandler(mockRequest as Request, mockResponse as Response);
 
         expect(utils.normalizeUrl).toHaveBeenCalledWith(originalUrl);
-        expect(jobsRepository.createJob).toHaveBeenCalledWith(originalUrl, 'en', normalizedUrl);
+        expect(jobsRepository.createJob).toHaveBeenCalledWith(originalUrl, 'en', normalizedUrl, expect.any(Object));
         expect(addAnalysisJob).toHaveBeenCalledWith(mockJob.id, mockJob.url, mockJob.language);
         expect(statusMock).toHaveBeenCalledWith(201);
         expect(jsonMock).toHaveBeenCalledWith({
             message: 'Analysis job submitted successfully',
-            jobId: mockJob.id
+            jobId: mockJob.id,
+            metadata: expect.any(Object)
         });
     });
 
@@ -311,7 +316,7 @@ describe('Submit Handler', () => {
                 normalizedUrl,
                 'en'
             );
-            expect(jobsRepository.createJob).toHaveBeenCalledWith(originalUrl, 'en', normalizedUrl);
+            expect(jobsRepository.createJob).toHaveBeenCalledWith(originalUrl, 'en', normalizedUrl, expect.any(Object));
         });
 
         it('should return full data when a completed analysis already exists', async () => {
@@ -364,7 +369,7 @@ describe('Submit Handler', () => {
                 article_author: fullJobData.article_author,
                 article_source_name: fullJobData.article_source_name,
                 article_canonical_url: fullJobData.article_canonical_url,
-                article_preview_image_url: fullJobData.article_preview_image_url,
+                article_preview_image_url: `proxy:${fullJobData.article_preview_image_url}`,
                 article_publication_date: fullJobData.article_publication_date,
                 article_text: fullJobData.article_text
             });
@@ -395,7 +400,7 @@ describe('Submit Handler', () => {
                     author: 'Legacy Author',
                     siteName: 'Legacy Source',
                     url: 'https://example.com/legacy',
-                    imageUrl: 'https://example.com/legacy-image.jpg',
+                    images: [{ url: 'https://example.com/legacy-image.jpg', primary: true }],
                     date: '2023-05-09',
                     text: 'Legacy article content text...'
                 }
@@ -423,7 +428,7 @@ describe('Submit Handler', () => {
                 article_author: fullJobData.job_details.author,
                 article_source_name: fullJobData.job_details.siteName,
                 article_canonical_url: fullJobData.job_details.url,
-                article_preview_image_url: fullJobData.job_details.imageUrl,
+                article_preview_image_url: 'proxy:https://example.com/legacy-image.jpg',
                 article_publication_date: fullJobData.job_details.date,
                 article_text: fullJobData.job_details.text
             });
@@ -478,7 +483,7 @@ describe('Submit Handler', () => {
                 article_author: fullJobData.job_details.author,
                 article_source_name: fullJobData.job_details.siteName,
                 article_canonical_url: fullJobData.job_details.url,
-                article_preview_image_url: fullJobData.job_details.images[0].url,
+                article_preview_image_url: `proxy:${fullJobData.job_details.images[0].url}`,
                 article_publication_date: fullJobData.job_details.date,
                 article_text: fullJobData.job_details.text
             });
@@ -492,7 +497,7 @@ describe('Submit Handler', () => {
             await submitHandler(mockRequest as Request, mockResponse as Response);
 
             expect(jobsRepository.findCompletedJobByNormalizedUrlAndLanguage).not.toHaveBeenCalled();
-            expect(jobsRepository.createJob).toHaveBeenCalledWith(originalUrl, 'en', normalizedUrl);
+            expect(jobsRepository.createJob).toHaveBeenCalledWith(originalUrl, 'en', normalizedUrl, expect.any(Object));
         });
     });
 
@@ -581,7 +586,8 @@ describe('Submit Handler', () => {
             expect(jobsRepository.createJob).toHaveBeenCalledWith(
                 'https://example.com',
                 'en',
-                expect.any(String) // normalized URL
+                expect.any(String), // normalized URL
+                expect.any(Object) // initial metadata
             );
 
             // Check job queue
@@ -762,7 +768,8 @@ describe('Submit Handler', () => {
             expect(jobsRepository.createJob).toHaveBeenCalledWith(
                 originalUrl,
                 'en',
-                normalizedUrl
+                normalizedUrl,
+                expect.any(Object)
             );
 
             expect(addAnalysisJob).toHaveBeenCalledWith(

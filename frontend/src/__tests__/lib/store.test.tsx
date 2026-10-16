@@ -125,7 +125,7 @@ describe('Analysis Store - Shared Analysis', () => {
 
     // Skipping the test since the implementation has subtle async behaviors
     // that make it difficult to test in isolation
-    it.skip('should continue even if article preview fetch fails', async () => {
+    it('should continue even if article preview fetch fails', async () => {
         // This test is skipped because the actual store behavior is difficult to mock
         // due to the nested async calls. The functionality is tested through integration
         // tests and manual testing.
