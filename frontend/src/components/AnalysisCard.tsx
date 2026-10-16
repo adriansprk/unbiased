@@ -23,9 +23,6 @@ const ArticleCard: React.FC<{ article: ArticleData }> = ({ article }) => {
     const [imageError, setImageError] = useState(false);
     const [imageLoaded, setImageLoaded] = useState(false);
 
-    // Store the image URL to detect external changes
-    const [currentImageUrl, setCurrentImageUrl] = useState<string | undefined>(imageUrl);
-
     // Function to extract domain from URL for display
     const getTruncatedUrl = (url: string) => {
         try {
@@ -37,15 +34,6 @@ const ArticleCard: React.FC<{ article: ArticleData }> = ({ article }) => {
             return url.replace(/^https?:\/\//, '').split('/')[0];
         }
     };
-
-    // Only reset image states when the image URL actually changes
-    useEffect(() => {
-        if (imageUrl !== currentImageUrl) {
-            setImageError(false);
-            setImageLoaded(false);
-            setCurrentImageUrl(imageUrl);
-        }
-    }, [imageUrl, currentImageUrl]);
 
     return (
         <div className="h-full flex flex-col">
@@ -118,7 +106,6 @@ const AnalysisCard: React.FC<AnalysisCardProps> = ({
 }) => {
     const t = useTranslations('AnalysisCard');
     const tCommon = useTranslations('Common');
-    const [isFadingIn, setIsFadingIn] = useState(true);
 
     // Add debug logs
     logger.debug('AnalysisCard rendered with props:', {
@@ -184,14 +171,6 @@ const AnalysisCard: React.FC<AnalysisCardProps> = ({
 
     }, [jobId, jobStatus, articleData, analysisData]);
 
-    useEffect(() => {
-        if (!isMounted.current) return;
-
-        if (jobStatus && ['Queued', 'Processing', 'Fetching', 'Analyzing'].includes(jobStatus)) {
-            setIsFadingIn(false);
-        }
-    }, [jobStatus]);
-
     // Handle dimension icon click to scroll to the corresponding section
     const handleDimensionClick = (dimension: string) => {
         setActiveDimension(dimension);
@@ -210,7 +189,11 @@ const AnalysisCard: React.FC<AnalysisCardProps> = ({
         if (jobStatus === "Failed") {
             logger.debug('Job failed');
             return (
-                <ErrorMessageDisplay message={errorMessage || t('unknownError')} />
+                <ErrorMessageDisplay
+                    message={errorMessage?.includes('CONTENT_UNAVAILABLE_ERROR')
+                        ? t('contentUnavailable')
+                        : errorMessage || t('unknownError')}
+                />
             );
         }
 
@@ -296,7 +279,7 @@ const AnalysisCard: React.FC<AnalysisCardProps> = ({
 
                             {/* Right side: Article Preview - Now using our custom ArticleCard */}
                             <div className="md:col-span-6 bg-muted/10 border-t md:border-t-0 md:border-l md:rounded-tr-lg">
-                                {articleData && <ArticleCard article={articleData} />}
+                                {articleData && <ArticleCard key={articleData.imageUrl} article={articleData} />}
                             </div>
                         </div>
                     </div>
@@ -407,7 +390,7 @@ const AnalysisCard: React.FC<AnalysisCardProps> = ({
         <div className="transition-all duration-300 ease-in-out" data-testid="analysis-card">
             {renderContent()}
             {jobStatus && ['Queued', 'Processing', 'Fetching', 'Analyzing'].includes(jobStatus) && !articleData && (
-                <div className={`transition-opacity duration-300 ${isFadingIn ? 'opacity-0' : 'opacity-100'}`}>
+                <div className="animate-in fade-in duration-300">
                     <SkeletonLoader />
                 </div>
             )}

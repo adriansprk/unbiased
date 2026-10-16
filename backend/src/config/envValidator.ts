@@ -25,7 +25,7 @@ const requiredEnvVars = [
   'REDIS_URL',
   'SUPABASE_URL',
   'SUPABASE_SERVICE_ROLE_KEY',
-  'DIFFBOT_API_KEY',
+  'FIRECRAWL_API_KEY',
   'GEMINI_API_KEY', // Now required as the primary LLM provider
   // 'OPENAI_API_KEY' - now optional as we can use Gemini as primary
 ];

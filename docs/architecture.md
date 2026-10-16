@@ -2,6 +2,8 @@
 
 **Status:** Updated (Reflecting PRD v1.4 Requirements - Sharing, Reuse, DB Optimization)
 
+> **Note (Oct 2026):** Diffbot and ScraperAPI have been removed. Content fetching now uses Firecrawl only, as described in the README's "Content Fetching Strategy". Diffbot references below are historical.
+
 ## Technical Summary
 
 This document details the technical architecture for Unbiased, an application designed to analyze online articles for bias, factual claims, and perspective using AI. The system employs a decoupled architecture featuring a Next.js frontend (using Zustand for state management), a Node.js backend (API Server and separate Worker process), Supabase for PostgreSQL database storage, Redis for job queuing via BullMQ, and WebSockets (Socket.IO) for real-time updates.

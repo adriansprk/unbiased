@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Job } from 'bullmq';
-import { JobStatus, AnalysisResults } from '../../types';
+import { JobStatus, AnalysisResults, ErrorType } from '../../types';
 
 // Hoist mock data and functions to be available to vi.mock calls
 const mockExtractedContent = vi.hoisted(() => ({
@@ -46,7 +46,7 @@ const mockGetJob = vi.hoisted(() => vi.fn(async () => ({
     article_publication_date: null
 })));
 const mockEmitSocketUpdate = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
-const mockFetchContentFromDiffbot = vi.hoisted(() => vi.fn().mockResolvedValue(mockExtractedContent));
+const mockFetchContent = vi.hoisted(() => vi.fn().mockResolvedValue(mockExtractedContent));
 const mockPerformAnalysisWithOpenAI = vi.hoisted(() => vi.fn().mockResolvedValue(mockAnalysisResults));
 const mockPerformAnalysisWithGemini = vi.hoisted(() => vi.fn().mockResolvedValue(mockAnalysisResults));
 
@@ -83,8 +83,9 @@ vi.mock('../../lib', () => ({
     redisClient: {}
 }));
 
-vi.mock('../../lib/diffbotClient', () => ({
-    fetchContentFromDiffbot: mockFetchContentFromDiffbot
+vi.mock('../../lib/firecrawlClient', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('../../lib/firecrawlClient')>()),
+    fetchContentFromFirecrawl: mockFetchContent
 }));
 
 vi.mock('../../lib/openaiClient', () => ({
@@ -191,7 +192,7 @@ describe('Analysis Worker', () => {
         mockJob = new MockJob({ jobId, url, language }, jobId);
 
         // Reset mock implementations to their defaults
-        mockFetchContentFromDiffbot.mockResolvedValue(mockExtractedContent);
+        mockFetchContent.mockResolvedValue(mockExtractedContent);
         mockPerformAnalysisWithOpenAI.mockResolvedValue(mockAnalysisResults);
         mockPerformAnalysisWithGemini.mockResolvedValue(mockAnalysisResults);
         mockGetJobTitleAndText.mockResolvedValue({
@@ -228,7 +229,7 @@ describe('Analysis Worker', () => {
     });
 
     describe('processJob function', () => {
-        it('should extract content with Diffbot, save to dedicated columns and analyze', async () => {
+        it('should extract content with Firecrawl, save to dedicated columns and analyze', async () => {
             // Import the module to get the processor function
             await import('../../workers/analysisWorker');
 
@@ -242,12 +243,11 @@ describe('Analysis Worker', () => {
             await processorFn(mockJob as unknown as Job);
 
             // Verify the status was updated correctly
-            expect(mockUpdateJobStatus).toHaveBeenCalledWith('test-job-id', 'Processing', undefined);
             expect(mockUpdateJobStatus).toHaveBeenCalledWith('test-job-id', 'Fetching', undefined);
             expect(mockUpdateJobStatus).toHaveBeenCalledWith('test-job-id', 'Analyzing', undefined);
 
             // Verify content was fetched and saved
-            expect(mockFetchContentFromDiffbot).toHaveBeenCalledWith('https://example.com/test-article');
+            expect(mockFetchContent).toHaveBeenCalledWith('https://example.com/test-article');
             expect(mockSaveExtractedArticleContent).toHaveBeenCalledWith(
                 'test-job-id',
                 {
@@ -274,7 +274,7 @@ describe('Analysis Worker', () => {
 
         it('should handle empty Diffbot response', async () => {
             // Reset all mocks for this test
-            mockFetchContentFromDiffbot.mockClear();
+            mockFetchContent.mockClear();
             mockUpdateJobAsFailed.mockClear();
             mockUpdateJobAsComplete.mockClear();
             mockPerformAnalysisWithOpenAI.mockClear();
@@ -282,7 +282,7 @@ describe('Analysis Worker', () => {
             mockSaveExtractedArticleContent.mockClear();
 
             // Mock Diffbot returning empty response
-            mockFetchContentFromDiffbot.mockResolvedValue({ objects: [] });
+            mockFetchContent.mockResolvedValue({ objects: [] });
 
             // Mock getJobTitleAndText to simulate empty content in DB
             mockGetJobTitleAndText.mockResolvedValue({
@@ -300,7 +300,7 @@ describe('Analysis Worker', () => {
             // and then failing at the analysis phase when it can't get title and text
 
             // Verify that content extraction was attempted
-            expect(mockFetchContentFromDiffbot).toHaveBeenCalled();
+            expect(mockFetchContent).toHaveBeenCalled();
 
             // Check if the job failed at some point
             const wasFailed = mockUpdateJobAsFailed.mock.calls.length > 0;
@@ -316,7 +316,7 @@ describe('Analysis Worker', () => {
 
         it('should handle Diffbot API errors', async () => {
             // Mock Diffbot API error
-            mockFetchContentFromDiffbot.mockRejectedValue(new Error('Diffbot API error'));
+            mockFetchContent.mockRejectedValue(new Error('Diffbot API error'));
 
             // Import the module to get the processor function
             await import('../../workers/analysisWorker');
@@ -371,7 +371,7 @@ describe('Analysis Worker', () => {
             mockPerformAnalysisWithGemini.mockRejectedValue(new Error('Gemini API error'));
 
             // Ensure other mocks resolve immediately 
-            mockFetchContentFromDiffbot.mockResolvedValue(mockExtractedContent);
+            mockFetchContent.mockResolvedValue(mockExtractedContent);
             mockSaveExtractedArticleContent.mockResolvedValue({});
             mockUpdateJobStatus.mockResolvedValue({});
             mockUpdateJobAsFailed.mockResolvedValue({});
@@ -509,7 +509,6 @@ describe('Analysis Worker', () => {
             // Import the module and extract markJobAsFailed function
             const analysisWorker = await import('../../workers/analysisWorker');
             const markJobAsFailed = analysisWorker.markJobAsFailed;
-            const { ErrorType } = analysisWorker;
 
             const errorMessage = 'Test error message';
             await markJobAsFailed(jobId, errorMessage, ErrorType.VALIDATION);
@@ -535,7 +534,6 @@ describe('Analysis Worker', () => {
             // Import the module and extract markJobAsFailed function
             const analysisWorker = await import('../../workers/analysisWorker');
             const markJobAsFailed = analysisWorker.markJobAsFailed;
-            const { ErrorType } = analysisWorker;
 
             // Mock the updateJobAsFailed to throw an error
             const dbError = new Error('DB error');
@@ -571,7 +569,7 @@ describe('Analysis Worker', () => {
             await import('../../workers/analysisWorker');
 
             // Ensure all mocks resolve immediately
-            mockFetchContentFromDiffbot.mockResolvedValue(mockExtractedContent);
+            mockFetchContent.mockResolvedValue(mockExtractedContent);
             mockUpdateJobStatus.mockResolvedValue({});
             mockSaveExtractedArticleContent.mockResolvedValue({});
             mockPerformAnalysisWithOpenAI.mockResolvedValue(mockAnalysisResults);
@@ -589,7 +587,7 @@ describe('Analysis Worker', () => {
             });
 
             // Check that content was fetched and saved
-            expect(mockFetchContentFromDiffbot).toHaveBeenCalledWith('https://example.com/test-article');
+            expect(mockFetchContent).toHaveBeenCalledWith('https://example.com/test-article');
             expect(mockSaveExtractedArticleContent).toHaveBeenCalledWith(
                 'test-job-id',
                 {
@@ -614,7 +612,7 @@ describe('Analysis Worker', () => {
 
         it('should handle content extraction errors and return error status', async () => {
             const error = new Error('Failed to extract content');
-            mockFetchContentFromDiffbot.mockRejectedValueOnce(error);
+            mockFetchContent.mockRejectedValueOnce(error);
 
             // Update job with retries enabled
             mockJob = new MockJob({ jobId, url, language }, jobId, 0, { attempts: 3 });
@@ -638,7 +636,7 @@ describe('Analysis Worker', () => {
 
         it('should handle retryable errors but not retry when max attempts reached', async () => {
             const error = new Error('API rate limit exceeded');
-            mockFetchContentFromDiffbot.mockRejectedValueOnce(error);
+            mockFetchContent.mockRejectedValueOnce(error);
 
             // Update job with last attempt
             mockJob = new MockJob({ jobId, url, language }, jobId, 2, { attempts: 3 });
@@ -661,7 +659,7 @@ describe('Analysis Worker', () => {
 
         it('should handle missing title or text', async () => {
             // Mock an empty title and text
-            mockFetchContentFromDiffbot.mockResolvedValueOnce({
+            mockFetchContent.mockResolvedValueOnce({
                 title: '',
                 text: '',
             });
@@ -693,7 +691,7 @@ describe('Analysis Worker', () => {
             mockPerformAnalysisWithOpenAI.mockRejectedValue(new Error('Analysis failed'));
 
             // Ensure other mocks resolve immediately
-            mockFetchContentFromDiffbot.mockResolvedValue(mockExtractedContent);
+            mockFetchContent.mockResolvedValue(mockExtractedContent);
             mockUpdateJobStatus.mockResolvedValue({});
             mockSaveExtractedArticleContent.mockResolvedValue({});
             mockUpdateJobAsFailed.mockResolvedValue({});
@@ -750,7 +748,7 @@ describe('Analysis Worker', () => {
 
         it('should handle generic non-error exceptions', async () => {
             // Mock a generic error (string throw)
-            mockFetchContentFromDiffbot.mockImplementationOnce(() => {
+            mockFetchContent.mockImplementationOnce(() => {
                 throw 'String error';
             });
 
@@ -765,241 +763,77 @@ describe('Analysis Worker', () => {
         });
     });
 
-    describe('Archive.is Fetch Strategy', () => {
-        // Tests for the Archive.is fetch strategy
-        it('should use Archive.is URL for domains on the proactive list', async () => {
-            // Import the module to get processor function
+    describe('Fetch strategy', () => {
+        const runJob = async (jobUrl: string) => {
             await import('../../workers/analysisWorker');
-
-            // Set up domain detection mocks
-            const originalUrl = 'https://www.nytimes.com/article';
-            mockFetchContentFromDiffbot.mockClear();
-
-            // Mock fetchContentFromDiffbot to simulate the implementation
-            mockFetchContentFromDiffbot.mockImplementation((url) => {
-                // This simulates what the real function does based on the implementation in diffbotClient.ts
-                if (mockIsDomainOnProactiveList('www.nytimes.com')) {
-                    // If we're called with a direct URL, we would transform it to archive.is URL
-                    if (url === originalUrl) {
-                        // Change URL and call self with archive.is URL
-                        const archiveUrl = `https://archive.is/newest/${encodeURIComponent(originalUrl)}`;
-                        return Promise.resolve({
-                            title: "Test Article Title",
-                            text: "This is the test article content.",
-                            author: "Test Author",
-                            siteName: "Test Source",
-                            url: originalUrl,
-                            date: "2023-01-01T12:00:00Z",
-                            fetchStrategy: "archive.is",
-                            originalUrl: originalUrl
-                        });
-                    }
-                }
-                return Promise.resolve(mockExtractedContent);
+            mockFetchContent.mockResolvedValue(mockExtractedContent);
+            mockGetJob.mockResolvedValue({
+                id: jobId,
+                url: jobUrl,
+                article_title: null,
+                article_author: null,
+                article_source_name: null,
+                article_canonical_url: null,
+                article_preview_image_url: null,
+                article_publication_date: null
             });
+            mockGetJobTitleAndText.mockResolvedValue({
+                article_title: 'Test Article Title',
+                article_text: 'This is the test article content.'
+            });
+            mockPerformAnalysisWithOpenAI.mockResolvedValue(mockAnalysisResults);
+            return processorFn(new MockJob({ jobId, url: jobUrl, language }, jobId) as unknown as Job);
+        };
 
-            // Ensure mocks resolve immediately
+        it('reads paywalled domains from the newest archive snapshot', async () => {
             mockExtractDomain.mockReturnValue('www.nytimes.com');
             mockIsDomainOnProactiveList.mockReturnValue(true);
 
-            // Set up other mocks to resolve quickly
-            mockUpdateJobStatus.mockResolvedValue({});
-            mockSaveExtractedArticleContent.mockResolvedValue({});
-            mockPerformAnalysisWithOpenAI.mockResolvedValue({});
-            mockUpdateJobAsComplete.mockResolvedValue({});
-            mockEmitSocketUpdate.mockResolvedValue(undefined);
+            await runJob('https://www.nytimes.com/article?smid=share');
 
-            // Create test job with paywall domain URL
-            const paywallJob = {
-                ...mockJob,
-                data: {
-                    ...mockJob.data,
-                    url: originalUrl
-                }
-            };
-
-            // Process the job
-            await processorFn(paywallJob as unknown as Job);
-
-            // Check that fetchContentFromDiffbot was called with the original URL
-            // (the mock would internally convert it to archive.is URL)
-            expect(mockFetchContentFromDiffbot).toHaveBeenCalledWith(originalUrl);
-
-            // Verify article data fields were correctly formatted
+            expect(mockFetchContent).toHaveBeenCalledWith('https://archive.ph/newest/https://www.nytimes.com/article');
+            // The canonical URL stays the original article, never the archive copy
             expect(mockSaveExtractedArticleContent).toHaveBeenCalledWith(
-                'test-job-id',
-                {
-                    article_title: "Test Article Title",
-                    article_text: "This is the test article content.",
-                    article_author: "Test Author",
-                    article_source_name: "Test Source",
-                    article_canonical_url: "https://www.nytimes.com/article",
-                    article_preview_image_url: undefined,
-                    article_publication_date: "2023-01-01T12:00:00Z"
-                },
-                {
-                    type: 'article',
-                    siteName: 'Test Source'
-                }
+                jobId,
+                expect.objectContaining({ article_canonical_url: 'https://www.nytimes.com/article?smid=share' }),
+                expect.anything()
             );
-        }, 30000); // 30 second timeout for this test
+            expect(mockUpdateJobAsComplete).toHaveBeenCalled();
+        }, 30000);
 
-        it('should use direct URL for domains not on the proactive list', async () => {
-            // Import the module to get processor function
-            await import('../../workers/analysisWorker');
-
-            // Set up domain detection mocks
-            const originalUrl = 'https://example.com/article';
-            mockFetchContentFromDiffbot.mockClear();
-            // Ensure mocks resolve immediately
+        it('fetches other domains directly', async () => {
             mockExtractDomain.mockReturnValue('example.com');
             mockIsDomainOnProactiveList.mockReturnValue(false);
 
-            // Set up other mocks to resolve quickly
-            mockUpdateJobStatus.mockResolvedValue({});
-            mockSaveExtractedArticleContent.mockResolvedValue({});
-            mockPerformAnalysisWithOpenAI.mockResolvedValue({});
-            mockUpdateJobAsComplete.mockResolvedValue({});
-            mockEmitSocketUpdate.mockResolvedValue(undefined);
+            await runJob('https://example.com/article');
 
-            // Create test job
-            const nonPaywallJob = {
-                ...mockJob,
-                data: {
-                    ...mockJob.data,
-                    url: originalUrl
-                }
-            };
+            expect(mockFetchContent).toHaveBeenCalledWith('https://example.com/article');
+            expect(mockUpdateJobAsComplete).toHaveBeenCalled();
+        }, 30000);
 
-            // Process the job
-            await processorFn(nonPaywallJob as unknown as Job);
+        it('fetches submitted archive URLs as they are', async () => {
+            await runJob('https://archive.ph/abc12');
 
-            // Verify the direct URL was used (not archive.is)
-            expect(mockFetchContentFromDiffbot).toHaveBeenCalledWith(
-                originalUrl
-            );
+            expect(mockExtractDomain).not.toHaveBeenCalled();
+            expect(mockFetchContent).toHaveBeenCalledWith('https://archive.ph/abc12');
+        }, 30000);
 
-            // Verify article data fields were correctly formatted
-            expect(mockSaveExtractedArticleContent).toHaveBeenCalledWith(
-                'test-job-id',
-                {
-                    article_title: "Test Article Title",
-                    article_text: "This is the test article content.",
-                    article_author: "Test Author",
-                    article_source_name: "Test Source",
-                    article_canonical_url: "https://example.com/canonical",
-                    article_preview_image_url: undefined,
-                    article_publication_date: "2023-01-01T12:00:00Z"
-                },
-                {
-                    type: 'article',
-                    siteName: 'Test Source'
-                }
-            );
-        }, 30000); // 30 second timeout for this test
-
-        it('should include fetch strategy information in extracted content', async () => {
-            // Import the module to get processor function
-            await import('../../workers/analysisWorker');
-
-            // Set up domain detection mocks
-            const originalUrl = 'https://www.nytimes.com/article';
-            mockFetchContentFromDiffbot.mockClear();
-            // Ensure mocks resolve immediately
-            mockExtractDomain.mockReturnValue('www.nytimes.com');
+        it('fails without retrying when no full article is available', async () => {
+            const { ContentUnavailableError } = await import('../../lib/firecrawlClient');
+            mockExtractDomain.mockReturnValue('www.spiegel.de');
             mockIsDomainOnProactiveList.mockReturnValue(true);
-
-            // Set up Diffbot mocks
-            mockFetchContentFromDiffbot.mockResolvedValue({
-                title: 'Test Article',
-                text: null,
-                author: null,
-                siteName: null,
-                url: originalUrl,
-                date: null,
-                fetchStrategy: 'archive.is',
-                originalUrl: originalUrl
-            });
-
-            // Set up other mocks to resolve quickly
-            mockUpdateJobStatus.mockResolvedValue({});
-            mockSaveExtractedArticleContent.mockResolvedValue({});
-            mockPerformAnalysisWithOpenAI.mockResolvedValue({});
-            mockUpdateJobAsComplete.mockResolvedValue({});
-            mockEmitSocketUpdate.mockResolvedValue(undefined);
-
-            // Create test job with paywall domain URL
-            const paywallJob = {
-                ...mockJob,
-                data: {
-                    ...mockJob.data,
-                    url: originalUrl
-                }
-            };
-
-            // Process the job
-            await processorFn(paywallJob as unknown as Job);
-
-            // Verify article data fields were correctly formatted
-            expect(mockSaveExtractedArticleContent).toHaveBeenCalledWith(
-                'test-job-id',
-                {
-                    article_title: 'Test Article',
-                    article_text: null,
-                    article_author: null,
-                    article_source_name: null,
-                    article_canonical_url: originalUrl,
-                    article_preview_image_url: undefined,
-                    article_publication_date: null
-                },
-                {
-                    type: 'article',
-                    siteName: 'Test Source'
-                }
-            );
-        }, 30000); // 30 second timeout for this test
-
-        it('should handle domain extraction errors and fall back to direct URL', async () => {
-            // Import the module to get processor function
             await import('../../workers/analysisWorker');
+            mockFetchContent.mockRejectedValue(new ContentUnavailableError('No archived copy of this article exists yet'));
 
-            // Set up domain extraction to fail
-            mockExtractDomain.mockImplementation(() => {
-                throw new Error('Invalid URL');
-            });
+            const job = new MockJob({ jobId, url: 'https://www.spiegel.de/a', language }, jobId, 0, { attempts: 3 });
+            await processorFn(job as unknown as Job).catch(() => undefined);
 
-            // Set up other mocks to resolve quickly
-            mockUpdateJobStatus.mockResolvedValue({});
-            mockSaveExtractedArticleContent.mockResolvedValue({});
-            mockPerformAnalysisWithOpenAI.mockResolvedValue({});
-            mockUpdateJobAsComplete.mockResolvedValue({});
-            mockEmitSocketUpdate.mockResolvedValue(undefined);
-
-            // Process job and verify direct URL is used
-            await processorFn(mockJob as unknown as Job);
-
-            // Should fall back to direct URL
-            expect(mockFetchContentFromDiffbot).toHaveBeenCalledWith(
-                'https://example.com/test-article'
+            expect(mockFetchContent).toHaveBeenCalledTimes(1);
+            expect(mockUpdateJobAsFailed).toHaveBeenCalledWith(
+                jobId,
+                `${ErrorType.CONTENT_UNAVAILABLE}: No archived copy of this article exists yet`
             );
-
-            // Verify article data fields were correctly formatted
-            expect(mockSaveExtractedArticleContent).toHaveBeenCalledWith(
-                'test-job-id',
-                {
-                    article_title: "Test Article Title",
-                    article_text: "This is the test article content.",
-                    article_author: "Test Author",
-                    article_source_name: "Test Source",
-                    article_canonical_url: "https://example.com/canonical",
-                    article_preview_image_url: undefined,
-                    article_publication_date: "2023-01-01T12:00:00Z"
-                },
-                {
-                    type: 'article',
-                    siteName: 'Test Source'
-                }
-            );
-        }, 30000); // 30 second timeout for this test
+            expect(mockPerformAnalysisWithOpenAI).not.toHaveBeenCalled();
+        }, 30000);
     });
 }); 

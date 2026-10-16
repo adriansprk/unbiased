@@ -13,7 +13,8 @@ export type LogArgs = unknown[];
 // Error types for better error handling
 export enum ErrorType {
   DATABASE = 'DATABASE_ERROR',
-  DIFFBOT = 'DIFFBOT_ERROR',
+  CONTENT_FETCH = 'CONTENT_FETCH_ERROR',
+  CONTENT_UNAVAILABLE = 'CONTENT_UNAVAILABLE_ERROR',
   OPENAI = 'OPENAI_ERROR',
   GEMINI = 'GEMINI_ERROR',
   VALIDATION = 'VALIDATION_ERROR',
@@ -129,18 +130,6 @@ export interface DiffbotArticleObject {
     text: string;
     linkType: string;
   }>;
-}
-
-export interface DiffbotResponse {
-  objects: DiffbotArticleObject[];
-  request: {
-    pageUrl: string;
-    api: string;
-    version: number;
-    options: Record<string, unknown>;
-  };
-  humanLanguage?: string;
-  objects_on_page?: number;
 }
 
 // Job details (from Diffbot) - more strictly typed

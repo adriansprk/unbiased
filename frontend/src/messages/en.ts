@@ -85,6 +85,7 @@ const messages = {
         errorDisplayingBias: 'Error displaying bias score',
         errorDisplayingDimension: 'Error displaying dimension analysis',
         unknownError: 'An unknown error occurred',
+        contentUnavailable: "We couldn't get the full text of this article. Paywalled articles can only be analyzed once a complete archived copy exists, so please try again later.",
     },
     // Status Messages
     Status: {
@@ -163,10 +164,6 @@ const messages = {
 
         // Progress messages
         lookingForArchive: 'Looking for archived version...',
-        checkingIs: 'Checking archive.is...',
-        checkingPh: 'Checking archive.ph...',
-        checkingToday: 'Checking archive.today...',
-        checkingMd: 'Checking archive.md (last attempt)...',
         readingArchived: 'Reading archived article...',
         fetchingContent: 'Fetching article content...',
         analyzingAI: 'Analyzing Bias with AI...',

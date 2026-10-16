@@ -117,12 +117,8 @@ const config = {
     // Which LLM provider to use for analysis
     analysisLlmProvider: process.env.ANALYSIS_LLM_PROVIDER || 'gemini', // 'gemini' or 'openai', default to gemini
   },
-  diffbot: {
-    apiKey: validateVar('DIFFBOT_API_KEY'),
-    apiUrl: 'https://api.diffbot.com/v3',
-  },
   firecrawl: {
-    apiKey: process.env.FIRECRAWL_API_KEY || '',
+    apiKey: validateVar('FIRECRAWL_API_KEY'),
   },
   environment: process.env.NODE_ENV || 'development',
   features: {

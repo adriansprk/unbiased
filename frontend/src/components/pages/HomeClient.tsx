@@ -47,14 +47,6 @@ export default function HomeClient() {
         switch (message) {
             case 'Looking for archived version...':
                 return progressT('lookingForArchive');
-            case 'Checking is...':
-                return progressT('checkingIs');
-            case 'Checking ph...':
-                return progressT('checkingPh');
-            case 'Checking today...':
-                return progressT('checkingToday');
-            case 'Checking md (last attempt)...':
-                return progressT('checkingMd');
             case 'Reading archived article...':
                 return progressT('readingArchived');
             case 'Fetching article content...':

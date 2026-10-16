@@ -85,6 +85,7 @@ const messages = {
         errorDisplayingBias: 'Fehler bei der Anzeige des Bias-Scores',
         errorDisplayingDimension: 'Fehler bei der Anzeige der Dimensionsanalyse',
         unknownError: 'Ein unbekannter Fehler ist aufgetreten',
+        contentUnavailable: 'Wir konnten den vollständigen Text dieses Artikels nicht abrufen. Artikel hinter einer Paywall lassen sich erst analysieren, wenn eine vollständige archivierte Kopie existiert. Bitte versuchen Sie es später erneut.',
     },
     // Status Messages
     Status: {
@@ -163,10 +164,6 @@ const messages = {
 
         // Progress messages
         lookingForArchive: 'Suche nach archivierter Version...',
-        checkingIs: 'Durchsuche archive.is...',
-        checkingPh: 'Durchsuche archive.ph...',
-        checkingToday: 'Durchsuche archive.today...',
-        checkingMd: 'Durchsuche archive.md (letzter Versuch)...',
         readingArchived: 'Lese Artikelinhalte...',
         fetchingContent: 'Lade Artikelinhalt...',
         analyzingAI: 'Analysiere Bias mit KI...',

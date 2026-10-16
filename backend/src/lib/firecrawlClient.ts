@@ -11,6 +11,8 @@ import { extractArticleContent } from './contentExtractor';
  */
 interface FirecrawlMetadata {
   sourceURL?: string;
+  url?: string;
+  statusCode?: number;
   canonicalUrl?: string;
   language?: string;
   keywords?: string;
@@ -45,6 +47,31 @@ function isArchiveUrl(url: string): boolean {
   return ARCHIVE_DOMAINS.some(domain =>
     url.includes(domain) || url.includes(`.${domain}`)
   );
+}
+
+/**
+ * Below this many words the page is a paywall teaser, bot wall or error page, not an article.
+ * ponytail: word-count heuristic; add publisher-specific paywall markers if teasers slip through
+ */
+const MIN_ARTICLE_WORDS = 150;
+
+/**
+ * The page was fetched fine but holds no usable article (no snapshot, paywall teaser, bot wall).
+ * Retrying won't help, so callers should fail the job instead.
+ */
+export class ContentUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ContentUnavailableError';
+  }
+}
+
+/**
+ * archive.today URL that redirects to the newest snapshot of `url` (404 when none exists)
+ */
+export function newestArchiveUrl(url: string): string {
+  // Strip query params and fragments for better archive.today matching
+  return `https://archive.ph/newest/${url.replace(/[?#].*$/, '')}`;
 }
 
 /**
@@ -182,6 +209,12 @@ export async function fetchContentFromFirecrawl(url: string): Promise<JobDetails
       logger.info(`Firecrawl API call successful on attempt ${attempt + 1}`);
       logger.debug(`Response type: ${typeof response}`);
 
+      if (response?.metadata?.statusCode === 404) {
+        throw new ContentUnavailableError(
+          isArchive ? 'No archived copy of this article exists yet' : 'Article page not found (404)'
+        );
+      }
+
       // Validate that we have content
       if (!response || (!response.html && !response.markdown)) {
         throw new Error('Invalid response from Firecrawl API: No content found');
@@ -216,6 +249,13 @@ export async function fetchContentFromFirecrawl(url: string): Promise<JobDetails
           .trim();
       }
 
+      const wordCount = (bodyText.match(/\S+/g) || []).length;
+      if (wordCount < MIN_ARTICLE_WORDS) {
+        throw new ContentUnavailableError(
+          `Only ${wordCount} words of article text available (paywall preview or blocked page)`
+        );
+      }
+
       // Log the two most important extracts: title and body text
       logger.info(`Successfully extracted content with title: "${title}"`);
       logger.info(`Body text length: ${bodyText.length} characters`);
@@ -235,15 +275,14 @@ export async function fetchContentFromFirecrawl(url: string): Promise<JobDetails
         date: publishDate || null,
         siteName: siteName || null,
         images: [], // Archive images are problematic anyway, keeping empty for now
-        url: response.metadata?.sourceURL || url,
+        url: response.metadata?.url || response.metadata?.sourceURL || url,
         canonicalUrl: response.metadata?.canonicalUrl || undefined,
         publisherCountry: undefined,
         publisherRegion: undefined,
         language: response.metadata?.language || undefined,
         sentiment: undefined,
-        diffbotUri: undefined,
         type: 'article',
-        resolvedPageUrl: response.metadata?.sourceURL || undefined,
+        resolvedPageUrl: response.metadata?.url || undefined,
         pageUrl: url,
         humanLanguage: response.metadata?.language || undefined,
         numPages: undefined,
@@ -273,6 +312,10 @@ export async function fetchContentFromFirecrawl(url: string): Promise<JobDetails
 
       return jobDetails;
     } catch (error) {
+      if (error instanceof ContentUnavailableError) {
+        throw error;
+      }
+
       attempt++;
 
       // Enhanced error logging with full details

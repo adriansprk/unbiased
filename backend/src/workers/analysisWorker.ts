@@ -3,14 +3,13 @@ import { Worker, Job, WorkerOptions } from 'bullmq';
 import { validateEnv } from '../config/envValidator';
 import config from '../config';
 import { jobsRepository } from '../db/jobsRepository';
-import { JobStatus, JobUpdatePayload, AnalysisResults, AnalysisJobData, ErrorType, JobDetails, ImageDetails, DiffbotArticleObject } from '../types';
+import { JobStatus, JobUpdatePayload, AnalysisResults, AnalysisJobData, ErrorType, JobDetails, DiffbotArticleObject } from '../types';
 import { redisClient, emitSocketUpdate } from '../lib';
-import { fetchContentFromDiffbot } from '../lib/diffbotClient';
-import { fetchContentFromFirecrawl, isArchiveUrl } from '../lib/firecrawlClient';
+import { fetchContentFromFirecrawl, isArchiveUrl, newestArchiveUrl, ContentUnavailableError } from '../lib/firecrawlClient';
 import { performAnalysisWithOpenAI } from '../lib/openaiClient';
 import { performAnalysisWithGemini } from '../lib/geminiClient';
 import logger from '../lib/logger';
-import { selectPreviewImage, createMinimalMetadata } from '../lib/utils';
+import { selectPreviewImage, createMinimalMetadata, extractDomain, isDomainOnProactiveList } from '../lib/utils';
 
 /**
  * BullMQ Retry Configuration Note:
@@ -266,113 +265,33 @@ const worker = new Worker(
       // 1. Update status to Fetching before calling content extraction API
       await updateJobStatus(jobId, 'Fetching');
 
-      // 3. Call content extraction API - Use Firecrawl only for successfully resolved archive URLs
-      let extractedContent;
-      let useFirecrawl = false;
-      let finalUrl = url;
+      // 3. Fetch content with Firecrawl. Paywalled domains are read from their newest archive.today snapshot.
+      let extractedContent: JobDetails;
+      let fetchUrl = url;
+
+      if (!isArchiveUrl(url) && isDomainOnProactiveList(extractDomain(url))) {
+        logger.info(`Paywalled domain, reading newest archive snapshot for: ${url}`);
+        await updateJobStatus(jobId, 'Processing');
+        await emitProgressMessage(jobId, 'Looking for archived version...');
+        fetchUrl = newestArchiveUrl(url);
+      } else {
+        await emitProgressMessage(jobId, 'Fetching article content...');
+      }
 
       try {
-        // Check if this is already an archive URL
-        const isArchive = isArchiveUrl(url);
-
-        if (isArchive && config.firecrawl?.apiKey) {
-          // Already an archive URL, use Firecrawl directly
-          logger.info(`Using Firecrawl for archive URL: ${url}`);
-          useFirecrawl = true;
-          finalUrl = url;
-        } else {
-          // Check if domain is on proactive list and try to resolve archive URL
-          const { extractDomain, isDomainOnProactiveList } = await import('../lib/utils');
-          const domain = extractDomain(url);
-
-          if (isDomainOnProactiveList(domain)) {
-            logger.info(`Domain ${domain} is on proactive list. Attempting to resolve archive snapshot...`);
-            // Update to Processing status when using Archive.is path (longer operation)
-            await updateJobStatus(jobId, 'Processing');
-            await emitProgressMessage(jobId, 'Looking for archived version...');
-
-            const { resolveArchiveSnapshot } = await import('../lib/resolveArchive');
-            // Strip query params for better archive.is compatibility
-            const cleanUrl = url.replace(/[?#].*$/, '');
-
-            // Pass progress callback to get mirror-by-mirror updates
-            const archiveUrl = await resolveArchiveSnapshot(cleanUrl, async (progressMsg) => {
-              await emitProgressMessage(jobId, progressMsg);
-            });
-
-            if (archiveUrl && config.firecrawl?.apiKey) {
-              // Successfully resolved archive URL, use Firecrawl
-              logger.info(`Archive snapshot resolved: ${archiveUrl}. Using Firecrawl.`);
-              await emitProgressMessage(jobId, 'Reading archived article...');
-              useFirecrawl = true;
-              finalUrl = archiveUrl;
-            } else {
-              // Archive resolution failed, fall back to Diffbot with cleaned URL (no query params)
-              logger.warn(`Archive resolution failed for ${domain}. Falling back to Diffbot with cleaned URL.`);
-              await emitProgressMessage(jobId, 'Fetching article content...');
-              useFirecrawl = false;
-              finalUrl = cleanUrl;
-            }
-          }
-        }
-
-        // Fetch content using the determined service
-        if (useFirecrawl) {
-          logger.info(`Fetching content with Firecrawl from: ${finalUrl}`);
-          extractedContent = await fetchContentFromFirecrawl(finalUrl);
-        } else {
-          logger.info(`Fetching content with Diffbot from: ${finalUrl}`);
-          extractedContent = await fetchContentFromDiffbot(finalUrl);
-        }
-
-        if (!extractedContent) {
-          const serviceName = useFirecrawl ? 'Firecrawl' : 'Diffbot';
-          throw new JobProcessingError(
-            `${serviceName} returned no content`,
-            ErrorType.DIFFBOT, // Using DIFFBOT error type for content extraction failures
-            jobId,
-            true, // Retryable
-            3, // Max retries
-            2000 // Retry delay
-          );
-        }
-
-        // Debug log to see the structure of the extracted content
-        logger.debug(
-          `Extracted content for job ${jobId}:`,
-          JSON.stringify(
-            {
-              title: extractedContent.title,
-              author: extractedContent.author,
-              siteName: extractedContent.siteName,
-              images: extractedContent.images,
-              imageDetails: extractedContent.images
-                ? extractedContent.images.map((img: ImageDetails) => ({
-                    url: img.url,
-                    primary: img.primary,
-                    width: img.width,
-                    height: img.height,
-                  }))
-                : [],
-              hasImages:
-                !!extractedContent.images &&
-                Array.isArray(extractedContent.images) &&
-                extractedContent.images.length > 0,
-            },
-            null,
-            2
-          )
-        );
+        extractedContent = await fetchContentFromFirecrawl(fetchUrl);
       } catch (error) {
+        if (error instanceof ContentUnavailableError) {
+          // Missing snapshot or paywall teaser: retrying won't change the answer
+          throw new JobProcessingError(error.message, ErrorType.CONTENT_UNAVAILABLE, jobId);
+        }
+
         const errorMsg = error instanceof Error ? error.message : 'Unknown error';
         const isRateLimit =
           errorMsg.toLowerCase().includes('rate limit') || errorMsg.includes('429');
 
-        // Determine which service was used
-        const serviceName = useFirecrawl ? 'Firecrawl' : 'Diffbot';
-
         // Categorize network errors properly
-        let errorType = ErrorType.DIFFBOT; // Using DIFFBOT error type for content extraction failures
+        let errorType = ErrorType.CONTENT_FETCH;
         if (isRateLimit) {
           errorType = ErrorType.RATE_LIMIT;
         } else if (errorMsg.toLowerCase().includes('timeout')) {
@@ -382,7 +301,7 @@ const worker = new Worker(
         }
 
         throw new JobProcessingError(
-          `Failed to extract content with ${serviceName}: ${errorMsg}`,
+          `Failed to extract content with Firecrawl: ${errorMsg}`,
           errorType,
           jobId,
           true, // Most API issues are retryable
