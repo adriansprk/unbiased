@@ -2,7 +2,7 @@
 
 **Status:** Updated (Reflecting PRD v1.4 Requirements - Sharing, Reuse, DB Optimization)
 
-> **Note (Oct 2026):** Diffbot and ScraperAPI have been removed. Content fetching now uses Firecrawl only, as described in the README's "Content Fetching Strategy". Diffbot references below are historical.
+> **Note (Oct 2026):** Historical document. The app is now a single Next.js app (no Express API, BullMQ/Redis worker, Socket.IO, Diffbot or ScraperAPI). See the README's "How it works" for the current design.
 
 ## Technical Summary
 

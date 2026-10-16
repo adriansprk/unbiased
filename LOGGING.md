@@ -23,7 +23,7 @@ The system supports the following log levels (from least to most verbose):
 
 ## Default Log Levels by Environment
 
-- **Production**: `error` (frontend), `info` (backend)
+- **Production**: `error` (browser), `info` (server)
 - **Development**: `debug`
 - **Test**: `error`
 
@@ -31,7 +31,7 @@ The system supports the following log levels (from least to most verbose):
 
 ### Backend
 
-The backend uses environment variables to control log levels:
+Server code (API route, analysis pipeline) uses `LOG_LEVEL`:
 
 ```bash
 # Run with default log level
@@ -52,7 +52,7 @@ LOG_LEVEL=info npm run dev
 
 ### Frontend
 
-The frontend allows multiple ways to control logging:
+Browser code allows multiple ways to control logging:
 
 ```bash
 # Run with default log level
@@ -105,15 +105,15 @@ localStorage.setItem('debug_mode', 'false');
 
 The logging system is implemented in:
 
-- Backend: `backend/src/lib/logger.ts`
-- Frontend: `frontend/src/utils/logger.ts`
+- Server: `src/server/logger.ts`
+- Browser: `src/utils/logger.ts`
 
 Both implementations follow the same structure and API.
 
 ## Example Usage
 
 ```typescript
-import logger from '@/utils/logger'; // or '../../lib/logger' in backend
+import logger from '@/utils/logger'; // or '@/server/logger' in server code
 
 // Always logged
 logger.error('Critical error occurred', errorObject);
