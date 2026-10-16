@@ -8,18 +8,19 @@ import apiClient from "@/lib/apiClient";
 export async function generateMetadata({
     params
 }: {
-    params: { jobId: string; locale: string };
+    params: Promise<{ jobId: string; locale: string }>;
 }): Promise<Metadata> {
+    const { jobId, locale } = await params;
     // Ensure locale is of the correct type
-    const validLocale = params.locale === "en" || params.locale === "de" ? params.locale : "en";
+    const validLocale = locale === "en" || locale === "de" ? locale : "en";
     const t = await getTranslations({ locale: validLocale as "en" | "de", namespace: "SharedAnalysis" });
 
     // Try to get the article title for SEO purposes
     let title = t("sharedAnalysisTitle");
-    let description = `Analysis results for job ${params.jobId}`;
+    let description = `Analysis results for job ${jobId}`;
 
     try {
-        const statusData = await apiClient.getJobStatus(params.jobId);
+        const statusData = await apiClient.getJobStatus(jobId);
         if (statusData && statusData.article_title) {
             title = `${statusData.article_title} - Unbias`;
             description = `AI-powered bias analysis for "${statusData.article_title}"`;
@@ -43,16 +44,17 @@ export async function generateStaticParams() {
 export default async function SharedAnalysisPage({
     params
 }: {
-    params: { jobId: string; locale: string };
+    params: Promise<{ jobId: string; locale: string }>;
 }) {
+    const { jobId, locale } = await params;
     // Validate jobId format to prevent unnecessary API calls
-    const isValidUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.jobId);
+    const isValidUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(jobId);
 
     if (!isValidUuid) {
         return notFound();
     }
 
     return (
-        <SharedAnalysisClient jobId={params.jobId} locale={params.locale} />
+        <SharedAnalysisClient jobId={jobId} locale={locale} />
     );
 } 

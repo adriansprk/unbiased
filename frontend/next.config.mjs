@@ -15,19 +15,9 @@ const nextConfig = {
                 ? 'https://api-unbiased.adriancares.com'
                 : 'http://localhost:3001'),
     },
-    eslint: {
-        // Warning: This allows production builds to successfully complete even if
-        // your project has ESLint errors.
-        ignoreDuringBuilds: true,
-    },
-    typescript: {
-        // !! WARN !!
-        // Dangerously allow production builds to successfully complete even if
-        // your project has type errors.
-        // !! WARN !!
-        ignoreBuildErrors: true,
-    },
     images: {
+        // Next 16 blocks optimizing images from local IPs; the dev backend proxy runs on localhost
+        dangerouslyAllowLocalIP: process.env.NODE_ENV !== 'production',
         // Use remotePatterns for flexible and efficient domain grouping
         remotePatterns: [
             // Backend domain (will be used for proxied images)
