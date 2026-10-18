@@ -19,13 +19,13 @@ describe('RecentAnalysesList', () => {
     });
 
     it('links each stored analysis to its result page and updates when one is added', () => {
-        addToHistory({ id: 'job-1', url: 'https://example.com/article-1', title: 'Test Article 1', slant: 'Neutral' });
+        addToHistory({ id: 'job-1', url: 'https://example.com/article-1', title: 'Test Article 1' });
         render(<RecentAnalysesList />);
 
         expect(screen.getByText('Test Article 1').closest('a')).toHaveAttribute('href', '/analysis/job-1');
         expect(screen.getByText('example.com...')).toBeInTheDocument();
 
-        act(() => addToHistory({ id: 'job-2', url: 'https://example.com/b', title: 'Test Article 2', slant: 'Neutral' }));
+        act(() => addToHistory({ id: 'job-2', url: 'https://example.com/b', title: 'Test Article 2' }));
         expect(screen.getByText('Test Article 2')).toBeInTheDocument();
     });
 });

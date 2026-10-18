@@ -86,7 +86,6 @@ export default async function AnalysisPage({ params }: { params: Params }) {
                               id: view.id,
                               url: view.article?.url || job.url,
                               title: view.article?.title || job.url,
-                              slant: view.analysis?.slant?.category || "Unknown",
                           }
                         : null
                 }

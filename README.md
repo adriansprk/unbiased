@@ -23,8 +23,8 @@ browser ──POST /api/analyze──▶ Turnstile check → normalize URL
                                       1. preview from the publisher's meta tags
                                       2. fetch with Firecrawl (paywalled sites: newest archive.today snapshot)
                                       3. extract text with Readability
-                                      4. analyze with the LLM (OpenAI, or any OpenAI-compatible API)
-                                      5. store results on the row
+                                      4. analyze with the LLM (OpenAI, or any OpenAI-compatible API) into a fixed schema
+                                      5. drop findings whose quote isn't in the article, store results on the row
 browser ──▶ /[locale]/analysis/[id]   server-renders the row; refreshes every 2s until it is done
 ```
 
@@ -34,7 +34,9 @@ browser ──▶ /[locale]/analysis/[id]   server-renders the row; refreshes ev
 - **Interrupted jobs** (no progress for 10 minutes, e.g. a deploy mid-analysis) are shown as failed, and the next submission starts over.
 - **History** of opened analyses is kept in the browser's localStorage.
 - **Bot protection** via Cloudflare Turnstile on submission (skipped in `next dev`).
-- **Any LLM.** Analyses use OpenAI (`gpt-6.1-sol`) by default. To use another provider, set `OPENAI_BASE_URL` to its OpenAI-compatible endpoint (OpenRouter, Gemini, Anthropic, Mistral, Ollama, …), put its key in `OPENAI_API_KEY` and its model id in `LLM_MODEL_NAME`. See `.env.example`.
+- **What an analysis contains** (`src/server/analysis.ts`): the article type (news, analysis, opinion, interview), findings backed by quotes, a rating for each of five dimensions (word choice, framing, sources, balance, headline), how the article portrays the people and institutions involved, and the main factual claims. The overall bias level is calculated from the five ratings, and opinion pieces are judged against opinion norms rather than for neutrality.
+- **Quotes are checked.** Every quote must appear in the article; findings, actors and claims with a quote the article doesn't contain are dropped.
+- **Any LLM.** Analyses use OpenAI (`gpt-6.1-sol`) by default. To use another provider, set `OPENAI_BASE_URL` to its OpenAI-compatible endpoint (OpenRouter, Gemini, Mistral, Ollama, …), put its key in `OPENAI_API_KEY` and its model id in `LLM_MODEL_NAME`. The provider must support structured outputs. See `.env.example`.
 
 ## Getting Started
 
@@ -47,6 +49,12 @@ npm run dev                  # http://localhost:3000
 ```
 
 `npm test`, `npm run lint` and `npm run typecheck` cover the whole app.
+
+To try a prompt or model change on real articles, re-run the analysis on stored jobs and compare it with their stored result:
+
+```bash
+npm run eval -- <jobId> [<jobId> ...]   # full results in eval-out/
+```
 
 ## Deployment
 
@@ -65,6 +73,7 @@ src/
 │   ├── jobs.ts       # reuse/dedup + row → page view
 │   ├── pipeline.ts   # fetch → extract → analyze → store
 │   ├── firecrawl.ts, contentExtractor.ts, metadata.ts
+│   ├── analysis.ts   # result schema, bias level, quote check, old-row mapping
 │   ├── llm.ts        # analysis prompt + OpenAI-compatible client
 │   ├── db.ts, config.ts, urls.ts, turnstile.ts, logger.ts
 ├── i18n/, messages/                       # next-intl (en, de)

@@ -10,7 +10,8 @@
     "lint": "eslint --config eslint.config.mjs .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "eval": "vite-node scripts/eval.ts"
   },
   "dependencies": {
     "@mendable/firecrawl-js": "^4.46.0",

@@ -8,7 +8,8 @@ export interface Job {
   language: string;
   status: JobStatus;
   error_message: string | null;
-  analysis_results: AnalysisResults | null;
+  /** An `Analysis` (src/server/analysis.ts); older rows hold the first prompt version's shape */
+  analysis_results: unknown;
   /** Fetch metadata; older rows also hold the full legacy article payload */
   job_details: Record<string, unknown> | null;
   article_title: string | null;
@@ -20,12 +21,6 @@ export interface Job {
   article_publication_date: string | null;
   created_at: string;
   updated_at: string | null;
-}
-
-export interface AnalysisResults {
-  claims: string;
-  report: string;
-  slant: string;
 }
 
 /** Article content fetched and extracted by Firecrawl */
@@ -46,27 +41,3 @@ export interface FetchedArticle {
 
 export type LogLevel = 'error' | 'warn' | 'info' | 'debug' | 'trace';
 export type LogArgs = unknown[];
-
-export interface OpenAIChoiceMessage {
-  role: 'assistant' | 'user' | 'system';
-  content: string | null;
-}
-export interface OpenAIChoice {
-  index: number;
-  message: OpenAIChoiceMessage;
-  finish_reason: 'stop' | 'length' | 'function_call' | 'content_filter' | 'tool_calls' | null;
-}
-export interface OpenAIUsage {
-  prompt_tokens: number;
-  completion_tokens: number;
-  total_tokens: number;
-}
-export interface OpenAIResponse {
-  id: string;
-  object: string;
-  created: number;
-  model: string;
-  choices: OpenAIChoice[];
-  usage?: OpenAIUsage;
-  system_fingerprint?: string;
-}

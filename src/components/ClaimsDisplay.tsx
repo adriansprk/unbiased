@@ -1,29 +1,15 @@
 "use client";
 
 import React from 'react';
+import type { AnalysisView } from '@/server/analysis';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useTranslations } from 'next-intl';
 
-// Use a more flexible claim type that matches the actual data structure
-interface ClaimType {
-    claim_topic?: string;
-    claim_statement?: string;
-    quote_from_article?: string;
-    significance_rationale?: string;
-    claim?: string;
-    is_factual?: boolean;
-    context?: string;
-}
-
-interface ClaimsDisplayProps {
-    claims: ClaimType[];
-}
-
-const ClaimsDisplay: React.FC<ClaimsDisplayProps> = ({ claims }) => {
+const ClaimsDisplay: React.FC<{ claims: AnalysisView['claims'] }> = ({ claims }) => {
     const t = useTranslations('ClaimsDisplay');
     const tCommon = useTranslations('Common');
 
-    if (!claims || claims.length === 0) {
+    if (claims.length === 0) {
         return (
             <div className="p-4 text-center">
                 <p className="text-muted-foreground">{t('noClaims')}</p>
@@ -48,35 +34,23 @@ const ClaimsDisplay: React.FC<ClaimsDisplayProps> = ({ claims }) => {
                                     {index + 1}
                                 </div>
                                 <div className="flex flex-col items-start">
-                                    {claim.claim_topic && (
-                                        <h4 className="font-semibold text-md mb-1">{claim.claim_topic}</h4>
-                                    )}
-                                    <p className="text-sm text-muted-foreground">
-                                        {claim.claim_statement || claim.claim}
-                                    </p>
+                                    {claim.topic && <h4 className="font-semibold text-md mb-1">{claim.topic}</h4>}
+                                    <p className="text-sm text-muted-foreground">{claim.statement}</p>
                                 </div>
                             </div>
                         </AccordionTrigger>
                         <AccordionContent className="px-4 py-3 pt-0 space-y-4 text-sm border-t border-border bg-muted/20">
-                            {claim.quote_from_article && (
+                            {claim.quote && (
                                 <div className="bg-muted p-4 my-3 rounded-md border-l-4 border-slate-300 italic">
                                     <p className="not-italic font-medium text-xs mb-2 text-muted-foreground">{tCommon('source')}</p>
-                                    <p className="text-sm leading-relaxed">{claim.quote_from_article}</p>
+                                    <p className="text-sm leading-relaxed">{claim.quote}</p>
                                 </div>
                             )}
-                            {claim.significance_rationale && (
+                            {claim.significance && (
                                 <div className="px-1 py-2">
                                     <div className="flex items-baseline">
                                         <span className="font-medium text-xs text-muted-foreground mr-2">{t('significance')}</span>
-                                        <p className="text-sm">{claim.significance_rationale}</p>
-                                    </div>
-                                </div>
-                            )}
-                            {claim.context && !claim.significance_rationale && (
-                                <div className="px-1 py-2">
-                                    <div className="flex items-baseline">
-                                        <span className="font-medium text-xs text-muted-foreground mr-2">{t('context')}</span>
-                                        <p className="text-sm">{claim.context}</p>
+                                        <p className="text-sm">{claim.significance}</p>
                                     </div>
                                 </div>
                             )}
@@ -88,4 +62,4 @@ const ClaimsDisplay: React.FC<ClaimsDisplayProps> = ({ claims }) => {
     );
 };
 
-export default ClaimsDisplay; 
+export default ClaimsDisplay;
