@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { performAnalysisWithOpenAI } from '../llm/openai';
+import { analyzeArticle } from '../llm';
 import OpenAI from 'openai';
 import config from '../config';
 import { AnalysisResults } from '../types';
@@ -25,8 +25,9 @@ vi.mock('openai', () => {
 vi.mock('../config', () => ({
     default: {
         ai: {
-            openaiApiKey: 'test-api-key',
-            modelName: 'test-model',
+            apiKey: 'test-api-key',
+            baseUrl: 'https://llm.example/v1',
+            model: 'test-model',
         },
     }
 }));
@@ -36,13 +37,20 @@ vi.spyOn(console, 'error').mockImplementation(() => { });
 vi.spyOn(console, 'log').mockImplementation(() => { });
 vi.spyOn(console, 'warn').mockImplementation(() => { });
 
-describe('OpenAI Client', () => {
+// The client is created when the module loads, before beforeEach resets the mocks
+const clientOptions = vi.mocked(OpenAI).mock.calls[0]?.[0];
+
+describe('LLM client', () => {
+    it('talks to the configured OpenAI-compatible endpoint', () => {
+        expect(clientOptions).toMatchObject({ apiKey: 'test-api-key', baseURL: 'https://llm.example/v1' });
+    });
+
     beforeEach(() => {
         // Reset all mocks before each test
         vi.resetAllMocks();
 
         // Ensure config has API key by default
-        vi.mocked(config.ai).openaiApiKey = 'test-api-key';
+        vi.mocked(config.ai).apiKey = 'test-api-key';
 
         // Set up default mock response with combined result structure
         mockCreate.mockResolvedValue({
@@ -108,13 +116,13 @@ describe('OpenAI Client', () => {
 
     it('should successfully perform analysis with OpenAI using the combined prompt approach', async () => {
         // Call the function with test data
-        const result = await performAnalysisWithOpenAI('Test Title', 'Test article text', 'en');
+        const result = await analyzeArticle('Test Title', 'Test article text', 'en');
 
         // Verify that the OpenAI API was called once with the combined prompt
         expect(mockCreate).toHaveBeenCalledTimes(1);
 
         // Verify that the correct model name was used
-        expect(mockCreate.mock.calls[0][0]).toHaveProperty('model', config.ai.modelName);
+        expect(mockCreate.mock.calls[0][0]).toHaveProperty('model', config.ai.model);
 
         // Check that user message contains the content
         expect(mockCreate.mock.calls[0][0].messages[0].role).toBe('user');
@@ -131,7 +139,7 @@ describe('OpenAI Client', () => {
 
     it('should handle German language parameter', async () => {
         // Call the function with German language
-        await performAnalysisWithOpenAI('Test Title', 'Test article text', 'de');
+        await analyzeArticle('Test Title', 'Test article text', 'de');
 
         // Check that the prompt includes German language instructions
         expect(mockCreate.mock.calls[0][0].messages[0].content).toContain('Language Instruction:');
@@ -140,15 +148,15 @@ describe('OpenAI Client', () => {
 
     it('should handle missing API key', async () => {
         // Override config for this test only
-        vi.mocked(config.ai).openaiApiKey = '';
+        vi.mocked(config.ai).apiKey = '';
 
         // Test that function throws an error with missing API key
-        await expect(performAnalysisWithOpenAI('Title', 'Text')).rejects.toThrow(
-            'OpenAI API key is not configured'
+        await expect(analyzeArticle('Title', 'Text')).rejects.toThrow(
+            'OPENAI_API_KEY is not configured'
         );
 
         // Restore API key for other tests
-        vi.mocked(config.ai).openaiApiKey = 'test-api-key';
+        vi.mocked(config.ai).apiKey = 'test-api-key';
     });
 
     it('should handle API errors gracefully', async () => {
@@ -161,7 +169,7 @@ describe('OpenAI Client', () => {
         );
 
         // Test that function passes through error message
-        await expect(performAnalysisWithOpenAI('Title', 'Text')).rejects.toThrow(
+        await expect(analyzeArticle('Title', 'Text')).rejects.toThrow(
             'API rate limit exceeded'
         );
     });
@@ -177,7 +185,7 @@ describe('OpenAI Client', () => {
         });
 
         // The function should throw an error about parsing failure
-        await expect(performAnalysisWithOpenAI('Test Title', 'Test article text')).rejects.toThrow(
+        await expect(analyzeArticle('Test Title', 'Test article text')).rejects.toThrow(
             'Failed to parse combined analysis response'
         );
     });
@@ -190,8 +198,8 @@ describe('OpenAI Client', () => {
         mockCreate.mockResolvedValueOnce({});
 
         // The function should throw an error about parsing failure
-        await expect(performAnalysisWithOpenAI('Test Title', 'Test article text')).rejects.toThrow(
-            'OpenAI API error: Failed to parse combined analysis response'
+        await expect(analyzeArticle('Test Title', 'Test article text')).rejects.toThrow(
+            'LLM error: Failed to parse combined analysis response'
         );
     });
 
@@ -200,7 +208,7 @@ describe('OpenAI Client', () => {
         const longText = 'a'.repeat(200000);
 
         // Call the function with long text
-        await performAnalysisWithOpenAI('Title', longText);
+        await analyzeArticle('Title', longText);
 
         // Get the first call arguments
         const callArgs = mockCreate.mock.calls[0][0];
@@ -221,7 +229,7 @@ describe('OpenAI Client', () => {
         });
 
         // The function should extract and parse the JSON
-        const result = await performAnalysisWithOpenAI('Test Title', 'Test article text');
+        const result = await analyzeArticle('Test Title', 'Test article text');
 
         // Expect the result to match the JSON in the code block
         expect(result).toHaveProperty('slant');
