@@ -16,11 +16,11 @@ const SkeletonLoader: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
                     {/* Left side: Bias Analysis Skeleton */}
                     <div className="md:col-span-6 p-6 space-y-4">
-                        {/* Header with slant tag */}
+                        {/* Header with article type */}
                         <div className="flex items-center justify-between">
                             <h3 className="text-lg font-semibold">{t('biasAnalysis')}</h3>
                             <div className="flex items-center gap-2">
-                                {/* Slant Badge */}
+                                {/* Article type badge */}
                                 <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded-md w-20"></div>
                                 {/* Confidence */}
                                 <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-md w-24"></div>

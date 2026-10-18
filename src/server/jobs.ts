@@ -1,5 +1,5 @@
 import type { ArticleData } from '@/components/ArticlePreview';
-import type { AnalysisData } from '@/types/analysis';
+import { AnalysisView, toAnalysisView } from './analysis';
 import { createJob, findJobsForArticle, JobState } from './db';
 import { CONTENT_UNAVAILABLE } from './pipeline';
 import { Job } from './types';
@@ -43,7 +43,7 @@ export interface JobView {
   paywalled: boolean;
   startedAt: string;
   article: ArticleData | null;
-  analysis: AnalysisData | null;
+  analysis: AnalysisView | null;
 }
 
 export function toJobView(job: Job, now = Date.now()): JobView {
@@ -80,7 +80,7 @@ export function toJobView(job: Job, now = Date.now()): JobView {
     paywalled: isPaywalledDomain(job.url),
     startedAt: job.created_at,
     article,
-    analysis: status === 'Complete' ? (job.analysis_results as unknown as AnalysisData) : null,
+    analysis: status === 'Complete' ? toAnalysisView(job.analysis_results) : null,
   };
 }
 

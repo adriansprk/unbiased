@@ -1,32 +1,28 @@
 import React from 'react';
 import { screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import BiasScoreMeter from '@/components/BiasScoreMeter';
 import { renderWithI18n } from '../utils/test-utils';
-
-// Add console log to debug component rendering
-vi.spyOn(console, 'log').mockImplementation(() => { });
 
 describe('BiasScoreMeter Component', () => {
     const defaultProps = {
         biasLevel: 'Moderate' as const,
-        slantCategory: 'Liberal/Progressive',
-        slantConfidence: 'High'
+        articleType: { type: 'opinion' as const, rationale: 'A column arguing for the plan.' },
     };
 
-    it('renders the component with correct slant category and confidence', () => {
+    it('shows the article type and, for opinion pieces, how they are judged', () => {
         renderWithI18n(<BiasScoreMeter {...defaultProps} />);
 
-        // Check for heading
         expect(screen.getByText('Bias Analysis')).toBeInTheDocument();
+        expect(screen.getByText('Opinion')).toBeInTheDocument();
+        expect(screen.getByText(/judged on whether they treat facts/)).toBeInTheDocument();
+    });
 
-        // Check for slant category and confidence with prefix
-        // Using regex to match text that contains the slant category 
-        expect(screen.getByText(/Liberal\/Progressive/)).toBeInTheDocument();
+    it('shows no type badge for results from before article types', () => {
+        renderWithI18n(<BiasScoreMeter biasLevel="Low" articleType={null} />);
 
-        // Look for the confidence text which is part of the confidence display
-        const confidenceElements = screen.getAllByText(/High/);
-        expect(confidenceElements.length).toBeGreaterThan(0);
+        expect(screen.queryByText('Opinion')).not.toBeInTheDocument();
+        expect(screen.queryByText(/judged on whether/)).not.toBeInTheDocument();
     });
 
     it('shows correct colors for Low bias level', () => {

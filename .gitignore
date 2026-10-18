@@ -34,3 +34,5 @@ ai/stories/story-SEC-*.md
 claude.md
 .claude/*
 !.claude/settings.json
+
+eval-out/

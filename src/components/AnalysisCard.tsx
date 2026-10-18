@@ -3,8 +3,8 @@
 import React, { useState } from "react";
 import ErrorMessageDisplay from "@/components/ErrorMessageDisplay";
 import { ArticleData } from "@/components/ArticlePreview";
-import { AnalysisData } from "@/types/analysis";
-import { interpretBiasAnalysis } from "@/utils/biasInterpreter";
+import type { AnalysisView } from "@/server/analysis";
+import ActorsDisplay from "@/components/ActorsDisplay";
 import BiasScoreMeter from "@/components/BiasScoreMeter";
 import ClaimsDisplay from "@/components/ClaimsDisplay";
 import UnifiedDimensionAnalysis from "@/components/UnifiedDimensionAnalysis";
@@ -13,7 +13,6 @@ import Image from "next/image";
 import { ExternalLink } from "lucide-react";
 import { AnalysisOnlySkeletonLoader } from "@/components/SkeletonLoader";
 import SkeletonLoader from "@/components/SkeletonLoader";
-import logger from "@/utils/logger";
 import { useTranslations } from "next-intl";
 
 // Custom ArticleCard component specifically for the analysis view
@@ -93,7 +92,7 @@ interface AnalysisCardProps {
     jobId: string | null;
     jobStatus: string | null;
     articleData?: ArticleData | null;
-    analysisData?: AnalysisData | null;
+    analysisData?: AnalysisView | null;
     errorMessage?: string | null;
 }
 
@@ -107,20 +106,11 @@ const AnalysisCard: React.FC<AnalysisCardProps> = ({
     const t = useTranslations('AnalysisCard');
     const tCommon = useTranslations('Common');
 
-    // State for tracking the active dimension for scrolling
-    const [activeDimension, setActiveDimension] = useState<string | null>(null);
-
-    // Handle dimension icon click to scroll to the corresponding section
-    const handleDimensionClick = (dimension: string) => {
-        setActiveDimension(dimension);
-    };
-
     // Determine what to display based on the job status
     const renderContent = () => {
         if (!jobId || !jobStatus) {
             return null;
         }
-
 
         // Show error message if status is Failed
         if (jobStatus === "Failed") {
@@ -144,36 +134,21 @@ const AnalysisCard: React.FC<AnalysisCardProps> = ({
                             {/* Left side: Bias Score Meter with Overall Assessment */}
                             <div className="md:col-span-6 p-6 space-y-4">
                                 {jobStatus === "Complete" && analysisData ? (
-                                    (() => {
-                                        try {
-                                            const processedData = interpretBiasAnalysis(analysisData);
-
-                                            return (
-                                                <div className="space-y-4">
-                                                    <BiasScoreMeter
-                                                        biasLevel={processedData.overallBiasLevel}
-                                                        slantCategory={processedData.slantCategory}
-                                                        slantConfidence={processedData.slantConfidence}
-                                                        slantRationale={analysisData.slant?.rationale}
-                                                        overallAssessment={analysisData.report?.bias_analysis?.overall_assessment}
-                                                    />
-                                                </div>
-                                            );
-                                        } catch (error) {
-                                            logger.error('Error processing bias analysis:', error);
-                                            return <p>{t('errorDisplayingBias')}: {String(error)}</p>;
-                                        }
-                                    })()
+                                    <BiasScoreMeter
+                                        biasLevel={analysisData.bias_level}
+                                        articleType={analysisData.article_type}
+                                        summary={analysisData.summary}
+                                    />
                                 ) : (
                                     // Updated skeleton placeholder for bias analysis when not complete
                                     <div className="animate-pulse">
-                                        {/* Header with slant tag */}
+                                        {/* Header with article type */}
                                         <div className="flex items-center justify-between">
                                             <h3 className="text-lg font-semibold">
                                                 {tCommon('biasAnalysis')}
                                             </h3>
                                             <div className="flex items-center gap-2">
-                                                {/* Slant Badge */}
+                                                {/* Article type badge */}
                                                 <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded-md w-20"></div>
                                                 {/* Confidence */}
                                                 <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-md w-24"></div>
@@ -215,80 +190,23 @@ const AnalysisCard: React.FC<AnalysisCardProps> = ({
                     {/* Detailed Results Sections - only shown when analysis is complete */}
                     {jobStatus === "Complete" && analysisData ? (
                         <div className="space-y-8">
-                            {/* Dimension Status Icons */}
-                            <div className="bg-card p-6 rounded-lg border border-border">
-                                <h3 className="text-lg font-semibold mb-4">{tCommon('dimensionAnalysis')}</h3>
-                                {(() => {
-                                    try {
-                                        // Ensure we have valid data before trying to validate it
-                                        if (!analysisData || !analysisData.report || !analysisData.report.bias_analysis) {
-                                            return <p className="text-muted-foreground">{t('analysisDataIncomplete')}</p>;
-                                        }
-
-                                        const processedData = interpretBiasAnalysis(analysisData);
-
-                                        // Ensure dimension_summaries is an object
-                                        const dimensionSummaries = analysisData.report.bias_analysis.dimension_summaries || {};
-                                        if (typeof dimensionSummaries !== 'object' || dimensionSummaries === null) {
-                                            logger.warn('Invalid dimension_summaries format:', dimensionSummaries);
-                                            return <p className="text-muted-foreground">{t('dimensionDataInvalid')}</p>;
-                                        }
-
-
-                                        // Check if dimension_summaries is an array instead of an object
-                                        if (Array.isArray(dimensionSummaries)) {
-                                            logger.error('DEBUG - AnalysisCard - dimension_summaries is an array, not an object!');
-                                            // Convert array to object if needed
-                                            const convertedSummaries: Record<string, { summary: string, status: string }> = {};
-                                            dimensionSummaries.forEach((item) => {
-                                                if (item && typeof item === 'object' && 'dimension' in item) {
-                                                    const dimension = String(item.dimension);
-                                                    convertedSummaries[dimension] = {
-                                                        summary: item.summary || '',
-                                                        status: item.status || 'Unknown'
-                                                    };
-                                                }
-                                            });
-                                            return (
-                                                <UnifiedDimensionAnalysis
-                                                    dimensionStatuses={processedData.dimensionStatuses}
-                                                    dimensionSummaries={convertedSummaries}
-                                                    detailedFindings={analysisData.report.bias_analysis.detailed_findings}
-                                                    onDimensionClick={handleDimensionClick}
-                                                    activeDimension={activeDimension}
-                                                />
-                                            );
-                                        }
-
-                                        // Ensure detailed_findings is an array
-                                        const detailedFindings = Array.isArray(analysisData.report.bias_analysis.detailed_findings)
-                                            ? analysisData.report.bias_analysis.detailed_findings
-                                            : [];
-
-                                        return (
-                                            <UnifiedDimensionAnalysis
-                                                dimensionStatuses={processedData.dimensionStatuses}
-                                                dimensionSummaries={dimensionSummaries}
-                                                detailedFindings={detailedFindings}
-                                                onDimensionClick={handleDimensionClick}
-                                                activeDimension={activeDimension}
-                                            />
-                                        );
-                                    } catch (error) {
-                                        logger.error('Error interpreting dimension statuses:', error);
-                                        return <p className="text-muted-foreground">{t('errorDisplayingDimension')}</p>;
-                                    }
-                                })()}
-                            </div>
-
-                            {/* Claims Display - Full Width */}
-                            {analysisData.claims && analysisData.claims.factual_claims && (
+                            {analysisData.actors.length > 0 && (
                                 <div className="bg-card p-6 rounded-lg border border-border">
-                                    <ClaimsDisplay
-                                        claims={analysisData.claims.factual_claims}
-                                    />
+                                    <ActorsDisplay actors={analysisData.actors} />
                                 </div>
                             )}
+
+                            <div className="bg-card p-6 rounded-lg border border-border">
+                                <h3 className="text-lg font-semibold mb-4">{tCommon('dimensionAnalysis')}</h3>
+                                <UnifiedDimensionAnalysis
+                                    dimensions={analysisData.dimensions}
+                                    findings={analysisData.findings}
+                                />
+                            </div>
+
+                            <div className="bg-card p-6 rounded-lg border border-border">
+                                <ClaimsDisplay claims={analysisData.claims} />
+                            </div>
 
                             {/* Shareable Link Section */}
                             {jobId && (

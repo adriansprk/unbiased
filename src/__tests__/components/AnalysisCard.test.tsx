@@ -2,7 +2,8 @@ import { screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import AnalysisCard from '@/components/AnalysisCard';
 import '@testing-library/jest-dom';
-import { AnalysisData, DimensionSummary } from '@/types/analysis';
+import { toAnalysisView } from '@/server/analysis';
+import { analysis } from '../data/analysis';
 import { ArticleData } from '@/components/ArticlePreview';
 import { renderWithI18n } from '../utils/test-utils';
 
@@ -20,22 +21,20 @@ vi.mock('@/components/ErrorMessageDisplay', () => ({
 
 vi.mock('@/components/BiasScoreMeter', () => ({
     __esModule: true,
-    default: ({ slantCategory, biasLevel, slantRationale }: { slantCategory: string, biasLevel: string, slantRationale?: string }) => (
+    default: ({ biasLevel, articleType }: { biasLevel: string, articleType: { type: string } | null }) => (
         <div data-testid="bias-score-meter">
-            <div>Slant: {slantCategory}</div>
+            <div>Type: {articleType?.type}</div>
             <div>Bias Level: {biasLevel}</div>
-            {slantRationale && <div>Rationale: {slantRationale}</div>}
         </div>
     ),
 }));
 
 vi.mock('@/components/UnifiedDimensionAnalysis', () => ({
     __esModule: true,
-    default: ({ dimensionStatuses, onDimensionClick }: { dimensionStatuses: Record<string, string>, onDimensionClick: (dimension: string) => void }) => (
-        <div data-testid="dimension-analysis" onClick={() => onDimensionClick('test-dimension')}>
-            Dimension Analysis Mock
-            {Object.entries(dimensionStatuses || {}).map(([key, value]) => (
-                <div key={key}>{key}: {String(value)}</div>
+    default: ({ dimensions }: { dimensions: Record<string, { status: string }> }) => (
+        <div data-testid="dimension-analysis">
+            {Object.entries(dimensions).map(([key, value]) => (
+                <div key={key}>{key}: {value.status}</div>
             ))}
         </div>
     ),
@@ -72,19 +71,6 @@ vi.mock('next/image', () => ({
     ),
 }));
 
-// Mock the utils
-vi.mock('@/utils/biasInterpreter', () => ({
-    interpretBiasAnalysis: () => ({
-        overallBiasLevel: 'Low',
-        slantCategory: 'Liberal/Progressive',
-        slantConfidence: 'High',
-        dimensionStatuses: {
-            'Source Selection': 'Good',
-            'Fairness / Balance': 'Caution',
-        },
-    }),
-}));
-
 // Mock the ShareableLink component
 vi.mock('@/components/ShareableLink', () => ({
     __esModule: true,
@@ -104,36 +90,7 @@ describe('AnalysisCard Component', () => {
         url: 'https://example.com/article',
     };
 
-    const mockAnalysisData: AnalysisData = {
-        slant: {
-            category: 'Liberal/Progressive',
-            rationale: 'Test rationale',
-            confidence: 'High',
-        },
-        claims: {
-            factual_claims: [
-                { claim_statement: 'Claim 1', claim_topic: 'Topic 1' },
-                { claim_statement: 'Claim 2', claim_topic: 'Topic 2' }
-            ],
-        },
-        report: {
-            bias_analysis: {
-                detailed_findings: [],
-                overall_assessment: 'Test assessment',
-                overall_bias_level: 'Low',
-                dimension_summaries: {
-                    'Source Selection': {
-                        summary: 'Good sources were used',
-                        status: 'Good'
-                    },
-                    'Fairness / Balance': {
-                        summary: 'Some issues with balance',
-                        status: 'Caution'
-                    },
-                },
-            },
-        },
-    };
+    const mockAnalysisData = toAnalysisView(analysis);
 
     it('renders nothing when no job is provided', () => {
         const { getByTestId } = renderWithI18n(<AnalysisCard jobId={null} jobStatus={null} />);
@@ -193,16 +150,13 @@ describe('AnalysisCard Component', () => {
         expect(screen.getByTestId('dimension-analysis')).toBeInTheDocument();
         expect(screen.getByTestId('claims-display')).toBeInTheDocument();
 
-        // Should display the bias score
-        expect(screen.getByText('Slant: Liberal/Progressive')).toBeInTheDocument();
-        expect(screen.getByText('Bias Level: Low')).toBeInTheDocument();
+        // Level calculated from the ratings: three times Caution
+        expect(screen.getByText('Type: news')).toBeInTheDocument();
+        expect(screen.getByText('Bias Level: Moderate')).toBeInTheDocument();
+        expect(screen.getByText('sources: Caution')).toBeInTheDocument();
 
-        // Should display rationale if available
-        expect(screen.getByText('Rationale: Test rationale')).toBeInTheDocument();
-
-        // Should display dimension analysis with statuses
-        expect(screen.getByText('Source Selection: Good')).toBeInTheDocument();
-        expect(screen.getByText('Fairness / Balance: Caution')).toBeInTheDocument();
+        // Actors are rendered for current results
+        expect(screen.getByText('Jane Roe')).toBeInTheDocument();
 
         // Should display shareable link component
         expect(screen.getByTestId('shareable-link')).toBeInTheDocument();

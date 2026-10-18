@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { HISTORY_STORAGE_KEY, addToHistory, getHistorySnapshot } from '@/lib/localStorageUtils';
 
-const item = (id: string) => ({ id, url: `https://example.com/${id}`, title: `Article ${id}`, slant: 'Neutral' });
+const item = (id: string) => ({ id, url: `https://example.com/${id}`, title: `Article ${id}` });
 
 describe('browser history', () => {
     beforeEach(() => localStorage.clear());

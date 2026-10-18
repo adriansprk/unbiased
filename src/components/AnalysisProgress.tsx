@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Check, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const AI_HINTS = ["hintSlant", "hintClaims", "hintTone", "hintSources", "hintHeadline"] as const;
+const AI_HINTS = ["hintType", "hintTone", "hintSources", "hintActors", "hintClaims", "hintHeadline"] as const;
 
 interface AnalysisProgressProps {
     status: "Queued" | "Fetching" | "Analyzing";
