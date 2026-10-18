@@ -2,13 +2,13 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations, setRequestLocale } from "next-intl/server";
+import { ArrowLeft } from "lucide-react";
 import AnalysisCard from "@/components/AnalysisCard";
-import AnalyzeForm from "@/components/AnalyzeForm";
+import AnalysisProgress from "@/components/AnalysisProgress";
 import Header from "@/components/Header";
 import JobSync from "@/components/JobSync";
-import RecentAnalysesList from "@/components/RecentAnalysesList";
 import SkeletonLoader from "@/components/SkeletonLoader";
-import { HeroSectionDemo } from "@/components/blocks/hero-section-demo";
+import { Link } from "@/i18n/navigation";
 import { locales } from "@/i18n/routing";
 import { getJob } from "@/server/db";
 import { JobView, toJobView } from "@/server/jobs";
@@ -40,17 +40,8 @@ export default async function AnalysisPage({ params }: { params: Params }) {
     if (!job) notFound();
     const view = toJobView(job);
 
-    const tProgress = await getTranslations("SkeletonLoader");
+    const tProgress = await getTranslations("AnalysisProgress");
     const tCard = await getTranslations("AnalysisCard");
-    const tRecent = await getTranslations("RecentAnalyses");
-
-    const progressMessage = !view.pending
-        ? null
-        : view.status === "Analyzing"
-            ? tProgress("analyzingAI")
-            : view.status === "Fetching"
-                ? tProgress(view.paywalled ? "lookingForArchive" : "fetchingContent")
-                : tProgress("waitingInQueue");
 
     const errorMessage: Record<NonNullable<JobView["failure"]>, string> = {
         contentUnavailable: tCard("contentUnavailable"),
@@ -61,27 +52,30 @@ export default async function AnalysisPage({ params }: { params: Params }) {
     return (
         <>
             <Header />
-            <HeroSectionDemo urlInputComponent={<AnalyzeForm key={jobId} />} progressMessage={progressMessage} />
-            <div className="container mx-auto px-4 py-4 max-w-6xl">
-                <main>
-                    <section id="results-section" className="my-12">
-                        {view.article || !view.pending ? (
-                            <AnalysisCard
-                                key={view.id}
-                                jobId={view.id}
-                                jobStatus={view.status}
-                                articleData={view.article}
-                                analysisData={view.analysis}
-                                errorMessage={view.failure && errorMessage[view.failure]}
-                            />
-                        ) : (
-                            <SkeletonLoader />
-                        )}
-                    </section>
-                    <section className="mb-12">
-                        <h2 className="text-2xl font-bold mb-6">{tRecent("title")}</h2>
-                        <RecentAnalysesList />
-                    </section>
+            <div className="container mx-auto px-4 py-8 max-w-6xl">
+                <Link
+                    href="/"
+                    className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                    <ArrowLeft className="h-4 w-4" />
+                    {tProgress("newAnalysis")}
+                </Link>
+                <main className="mt-6 mb-12 space-y-8">
+                    {view.status !== "Complete" && view.status !== "Failed" && (
+                        <AnalysisProgress status={view.status} paywalled={view.paywalled} startedAt={view.startedAt} />
+                    )}
+                    {view.article || !view.pending ? (
+                        <AnalysisCard
+                            key={view.id}
+                            jobId={view.id}
+                            jobStatus={view.status}
+                            articleData={view.article}
+                            analysisData={view.analysis}
+                            errorMessage={view.failure && errorMessage[view.failure]}
+                        />
+                    ) : (
+                        <SkeletonLoader />
+                    )}
                 </main>
             </div>
             <JobSync

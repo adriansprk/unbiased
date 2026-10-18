@@ -148,6 +148,22 @@ const messages = {
         unknownError: 'Unbekannter Fehler',
     },
     // Skeleton Loader
+    AnalysisProgress: {
+        title: 'Artikel wird analysiert',
+        newAnalysis: 'Neue Analyse',
+        queued: 'Warte auf Start...',
+        fetch: 'Artikel abrufen',
+        fetchDetail: 'Lese den Artikeltext...',
+        fetchArchive: 'Artikel über das Archiv abrufen',
+        fetchArchiveDetail: 'Diese Seite hat eine Paywall, daher lesen wir eine archivierte Kopie...',
+        analyze: 'KI-Analyse',
+        hintSlant: 'Bestimme die Gesamtperspektive...',
+        hintClaims: 'Extrahiere faktische Behauptungen...',
+        hintTone: 'Prüfe Wortwahl und Ton...',
+        hintSources: 'Gewichte die zitierten Quellen...',
+        hintHeadline: 'Vergleiche Überschrift und Text...',
+        results: 'Ergebnisse',
+    },
     SkeletonLoader: {
         analysisResults: 'Analyseergebnisse',
         biasAnalysis: 'Bias-Analyse',
@@ -164,11 +180,6 @@ const messages = {
         startingAnalysisDesc: 'Wir beginnen bald mit der Extraktion von Inhalten aus dem Artikel für die Analyse.',
         gatheringContentDesc: 'Nach der Inhaltsextraktion wird die KI den Artikel auf faktische Behauptungen und Voreingenommenheit analysieren.',
 
-        // Progress messages
-        lookingForArchive: 'Suche nach archivierter Version...',
-        readingArchived: 'Lese Artikelinhalte...',
-        fetchingContent: 'Lade Artikelinhalt...',
-        analyzingAI: 'Analysiere Bias mit KI...',
     },
     // Metadata
     Metadata: {
@@ -231,13 +242,11 @@ const messages = {
     SharedAnalysis: {
         sharedAnalysisTitle: 'Geteilte Analyseergebnisse',
         loadingSharedAnalysis: 'Lade geteilte Analyse...',
-        analyzeUrlTitle: 'Weitere URL analysieren',
         error: 'Fehler beim Laden der geteilten Analyse',
         analysisNotFound: 'Analyse nicht gefunden',
         analysisNotFoundDetails: 'Die Analyse konnte nicht abgerufen werden. Sie wurde möglicherweise entfernt oder der Link ist falsch.',
         analysisFailed: 'Analyse fehlgeschlagen',
         analysisFailedDetails: 'Diese Analyse konnte nicht abgeschlossen werden.',
-        tryNewAnalysis: 'Starten Sie eine neue Analyse mit dem Formular oben.',
         analyzeYourOwn: 'Möchten Sie Ihren eigenen Artikel analysieren?',
         tryItYourself: 'Selbst ausprobieren'
     },

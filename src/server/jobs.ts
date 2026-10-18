@@ -41,6 +41,7 @@ export interface JobView {
   failure: Failure | null;
   /** Read from an archive snapshot (drives the progress message) */
   paywalled: boolean;
+  startedAt: string;
   article: ArticleData | null;
   analysis: AnalysisData | null;
 }
@@ -77,6 +78,7 @@ export function toJobView(job: Job, now = Date.now()): JobView {
     pending: status !== 'Complete' && status !== 'Failed',
     failure,
     paywalled: isPaywalledDomain(job.url),
+    startedAt: job.created_at,
     article,
     analysis: status === 'Complete' ? (job.analysis_results as unknown as AnalysisData) : null,
   };

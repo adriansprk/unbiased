@@ -148,6 +148,22 @@ const messages = {
         unknownError: 'Unknown error',
     },
     // Skeleton Loader
+    AnalysisProgress: {
+        title: 'Analyzing article',
+        newAnalysis: 'New analysis',
+        queued: 'Waiting to start...',
+        fetch: 'Fetching the article',
+        fetchDetail: 'Reading the article text...',
+        fetchArchive: 'Fetching the article via the archive',
+        fetchArchiveDetail: 'This site has a paywall, so we read an archived copy...',
+        analyze: 'AI analysis',
+        hintSlant: 'Determining the overall perspective...',
+        hintClaims: 'Extracting factual claims...',
+        hintTone: 'Checking word choice and tone...',
+        hintSources: 'Weighing the sources quoted...',
+        hintHeadline: 'Comparing the headline with the text...',
+        results: 'Results',
+    },
     SkeletonLoader: {
         analysisResults: 'Analysis Results',
         biasAnalysis: 'Bias Analysis',
@@ -164,11 +180,6 @@ const messages = {
         startingAnalysisDesc: 'We will soon begin extracting content from the article for analysis.',
         gatheringContentDesc: 'After content extraction, the AI will analyze the article for factual claims and bias.',
 
-        // Progress messages
-        lookingForArchive: 'Looking for archived version...',
-        readingArchived: 'Reading archived article...',
-        fetchingContent: 'Fetching article content...',
-        analyzingAI: 'Analyzing Bias with AI...',
     },
     // Metadata
     Metadata: {
@@ -231,13 +242,11 @@ const messages = {
     SharedAnalysis: {
         sharedAnalysisTitle: 'Shared Analysis Results',
         loadingSharedAnalysis: 'Loading Shared Analysis...',
-        analyzeUrlTitle: 'Analyze Another URL',
         error: 'Failed to load shared analysis',
         analysisNotFound: 'Analysis Not Found',
         analysisNotFoundDetails: 'The analysis could not be retrieved. It may have been removed or the link is incorrect.',
         analysisFailed: 'Analysis Failed',
         analysisFailedDetails: 'This analysis could not be completed.',
-        tryNewAnalysis: 'Start a new analysis with the form above.',
         analyzeYourOwn: 'Want to analyze your own article?',
         tryItYourself: 'Try it yourself'
     },
