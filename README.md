@@ -23,7 +23,7 @@ browser ──POST /api/analyze──▶ Turnstile check → normalize URL
                                       1. preview from the publisher's meta tags
                                       2. fetch with Firecrawl (paywalled sites: newest archive.today snapshot)
                                       3. extract text with Readability
-                                      4. analyze with Gemini (OpenAI fallback)
+                                      4. analyze with the LLM (OpenAI, or any OpenAI-compatible API)
                                       5. store results on the row
 browser ──▶ /[locale]/analysis/[id]   server-renders the row; refreshes every 2s until it is done
 ```
@@ -34,6 +34,7 @@ browser ──▶ /[locale]/analysis/[id]   server-renders the row; refreshes ev
 - **Interrupted jobs** (no progress for 10 minutes, e.g. a deploy mid-analysis) are shown as failed, and the next submission starts over.
 - **History** of opened analyses is kept in the browser's localStorage.
 - **Bot protection** via Cloudflare Turnstile on submission (skipped in `next dev`).
+- **Any LLM.** Analyses use OpenAI (`gpt-6.1-sol`) by default. To use another provider, set `OPENAI_BASE_URL` to its OpenAI-compatible endpoint (OpenRouter, Gemini, Anthropic, Mistral, Ollama, …), put its key in `OPENAI_API_KEY` and its model id in `LLM_MODEL_NAME`. See `.env.example`.
 
 ## Getting Started
 
@@ -41,7 +42,7 @@ Requires Node.js 22+.
 
 ```bash
 npm ci
-cp .env.example .env.local   # fill in Supabase, Firecrawl, Gemini and Turnstile keys
+cp .env.example .env.local   # fill in Supabase, Firecrawl, OpenAI and Turnstile keys
 npm run dev                  # http://localhost:3000
 ```
 
@@ -64,7 +65,7 @@ src/
 │   ├── jobs.ts       # reuse/dedup + row → page view
 │   ├── pipeline.ts   # fetch → extract → analyze → store
 │   ├── firecrawl.ts, contentExtractor.ts, metadata.ts
-│   ├── llm/          # Gemini and OpenAI clients
+│   ├── llm.ts        # analysis prompt + OpenAI-compatible client
 │   ├── db.ts, config.ts, urls.ts, turnstile.ts, logger.ts
 ├── i18n/, messages/                       # next-intl (en, de)
 └── proxy.ts                               # locale detection and redirects

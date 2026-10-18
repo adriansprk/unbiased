@@ -1,27 +1,66 @@
-import { GoogleGenAI } from '@google/genai';
-import config from '../config';
-import { AnalysisResults } from '../types';
-import logger from '../logger';
-
-// Debug top level to ensure this runs when imported
-logger.debug('[GEMINI-DEBUG] Module loaded, GoogleGenAI =', typeof GoogleGenAI);
+import OpenAI from 'openai';
+import config from './config';
+import { AnalysisResults, OpenAIResponse } from './types';
+import logger from './logger';
 
 /**
- * Maximum characters to send to Gemini for analysis
+ * Maximum number of retry attempts for API calls
+ */
+const MAX_RETRIES = 3;
+
+/**
+ * Base delay (in ms) for exponential backoff
+ */
+// const BASE_DELAY = 1000;
+
+/**
+ * Maximum characters to send to OpenAI for analysis
  * This applies only to the text content, not the prompts themselves
  */
 const MAX_CHARS = 100000; // Approximately 20,000 words
 
+// Any OpenAI-compatible Chat Completions API: OpenAI by default, another provider via OPENAI_BASE_URL
+const openai = new OpenAI({
+  apiKey: config.ai.apiKey,
+  baseURL: config.ai.baseUrl || undefined,
+  maxRetries: MAX_RETRIES,
+});
+
+/**
+ * Safely extracts content from OpenAI response, providing fallback value if structure is invalid
+ *
+ * @param response - The response from OpenAI API
+ * @param fallback - Fallback value to return if content cannot be extracted
+ * @returns Content string or fallback value
+ */
+function safelyExtractContent(response: OpenAIResponse, fallback: string): string {
+  if (!response) {
+    return fallback;
+  }
+
+  const choices = response.choices || [];
+  if (choices.length === 0) {
+    return fallback;
+  }
+
+  const message = choices[0]?.message;
+  if (!message) {
+    return fallback;
+  }
+
+  return message.content || fallback;
+}
+
 /**
  * Attempts to extract valid JSON from a potentially malformed response
  *
- * @param content - The raw response content from Gemini
+ * @param content - The raw response content from OpenAI
  * @returns Parsed JSON object or null if parsing fails
  */
-function extractJsonFromContent(content: string): unknown {
+function extractJsonFromContent(content: string): AnalysisResults | null {
   try {
     // First try direct JSON parsing
-    return JSON.parse(content);
+    return JSON.parse(content) as AnalysisResults;
   } catch {
     // If direct parsing fails, try to clean the response
     logger.debug('Attempting to clean JSON response...');
@@ -32,14 +71,14 @@ function extractJsonFromContent(content: string): unknown {
       if (codeBlockMatch && codeBlockMatch[1]) {
         logger.debug('Found JSON in code blocks, extracting...');
         const jsonContent = codeBlockMatch[1].trim();
-        return JSON.parse(jsonContent);
+        return JSON.parse(jsonContent) as AnalysisResults;
       }
 
       // Try to extract JSON object using regex
       const objectMatch = content.match(/(\{[\s\S]*\})/);
       if (objectMatch && objectMatch[1]) {
         const jsonContent = objectMatch[1].trim();
-        const parsed = JSON.parse(jsonContent) as unknown;
+        const parsed = JSON.parse(jsonContent) as AnalysisResults;
         logger.debug('Extracted JSON object from content');
         return parsed;
       }
@@ -48,7 +87,7 @@ function extractJsonFromContent(content: string): unknown {
       const arrayMatch = content.match(/(\[[\s\S]*\])/);
       if (arrayMatch && arrayMatch[1]) {
         const jsonContent = arrayMatch[1].trim();
-        const parsed = JSON.parse(jsonContent) as unknown;
+        const parsed = JSON.parse(jsonContent) as AnalysisResults;
         logger.debug('Extracted JSON array from content');
         return parsed;
       }
@@ -56,58 +95,50 @@ function extractJsonFromContent(content: string): unknown {
       // Ignore cleaning errors and fall through to the warning
     }
 
-    logger.warn('Could not extract valid JSON from Gemini response');
+    logger.warn('Could not extract valid JSON from OpenAI response');
     return null;
   }
 }
 
 /**
- * Perform factual claims, bias, and slant analysis on article content using Google Gemini
+ * Perform factual claims, bias, and slant analysis on article content using the configured LLM
  *
  * @param title - The title of the article
  * @param text - The text content of the article
  * @param language - The language to generate the response in ('en' or 'de')
  * @returns Analysis results containing claims, report, and slant
- * @throws Error if API call fails or API key is not configured
+ * @throws Error if API call fails after retries
  */
-export async function performAnalysisWithGemini(
+export async function analyzeArticle(
   title: string,
   text: string,
   language: string = 'en'
 ): Promise<AnalysisResults> {
   // Ensure we have the necessary API key
-  if (!config.ai.geminiApiKey) {
-    throw new Error('Gemini API key is not configured');
+  if (!config.ai.apiKey) {
+    throw new Error('OPENAI_API_KEY is not configured');
   }
 
+  // Validate language parameter
+  const validLanguage = ['en', 'de'].includes(language) ? language : 'en';
+
+  // Determine the language instruction text
+  const languageInstruction = validLanguage === 'de' ? 'German' : 'English';
+
+  // Truncate text if it's too long to optimize token usage
+  // Note: This truncation applies only to the article text, not to our prompt templates
+  const truncatedText =
+    text.length > MAX_CHARS
+      ? text.substring(0, MAX_CHARS) + '...[truncated for token optimization]'
+      : text;
+
+  logger.debug(
+    `Article text length: ${text.length} characters, truncated to ${truncatedText.length} characters for analysis with language: ${validLanguage}`
+  );
+
   try {
-    // Initialize the Gemini client
-    logger.debug(
-      `[DEBUG] Initializing GoogleGenAI with API key: ${config.ai.geminiApiKey ? '(key exists)' : '(no key)'}`
-    );
-    const genAI = new GoogleGenAI({ apiKey: config.ai.geminiApiKey });
-    logger.debug(`[DEBUG] GoogleGenAI type:`, typeof genAI);
-    logger.debug(`[DEBUG] GoogleGenAI keys:`, Object.keys(genAI));
-
-    // Validate language parameter
-    const validLanguage = ['en', 'de'].includes(language) ? language : 'en';
-
-    // Determine the language instruction text
-    const languageInstruction = validLanguage === 'de' ? 'German' : 'English';
-
-    // Truncate text if it's too long to optimize token usage
-    const truncatedText =
-      text.length > MAX_CHARS
-        ? text.substring(0, MAX_CHARS) + '...[truncated for token optimization]'
-        : text;
-
-    logger.debug(
-      `Article text length: ${text.length} characters, truncated to ${truncatedText.length} characters for analysis with language: ${validLanguage}`
-    );
-
-    try {
-      // Use a combined prompt that performs all analyses in a single API call
-      const combinedPrompt = `
+    // Use a combined prompt that performs all analyses in a single API call
+    const combinedPrompt = `
 You are a Comprehensive News Article Analyzer AI assistant. Your primary function is to meticulously analyze news articles for political slant, factual claims, and potential bias, providing a structured JSON output suitable for a media literacy tool. Accuracy, neutrality, clear sourcing, and strict adherence to the output format are paramount.
 
 **Input Article:**
@@ -341,83 +372,35 @@ Your entire output **must be a single, valid JSON object** and nothing else. Thi
 *   **Language Instruction:** Generate all text content (summaries, rationales, explanations) in ${languageInstruction}. All JSON keys, slant category names, and dimension status labels ('Balanced', 'Caution', 'Biased', 'Unknown') MUST remain in English regardless of the response language.
     `;
 
-      logger.debug('[DEBUG] About to call generateContent');
+    // Prepare completion options
+    const completionOptions: OpenAI.Chat.ChatCompletionCreateParams = {
+      model: config.ai.model,
+      messages: [{ role: 'user', content: combinedPrompt }],
+    };
 
-      // Handle different API structures
-      let result;
-      if (genAI.models && typeof genAI.models.generateContent === 'function') {
-        // New API structure
-        result = await genAI.models.generateContent({
-          model: config.ai.geminiModelName,
-          contents: combinedPrompt,
-          config: {
-            temperature: 0.7,
-          },
-        });
-      } else if (typeof (genAI as unknown as { getGenerativeModel?: unknown }).getGenerativeModel === 'function') {
-        // Old API structure
-        const model = (genAI as unknown as { getGenerativeModel: (config: { model: string }) => { generateContent: (options: unknown) => Promise<{ response: { text: () => string } }> } }).getGenerativeModel({ model: config.ai.geminiModelName });
-        result = await model.generateContent({
-          contents: [{ role: 'user', parts: [{ text: combinedPrompt }] }],
-          generationConfig: {
-            temperature: 0.7,
-          },
-        });
-        // Extract text in the old API format
-        if (result && result.response) {
-          (result as unknown as { text: string }).text = result.response.text();
-        }
-      } else {
-        throw new Error('GoogleGenAI API structure not recognized');
-      }
+    // GPT-5 models do not support the temperature parameter
+    // They only support the default temperature value of 1
 
-      logger.debug('[DEBUG] generateContent result type:', typeof result);
-      logger.debug(
-        '[DEBUG] generateContent result keys:',
-        result ? Object.keys(result) : 'undefined'
-      );
+    const combinedResponse = await openai.chat.completions.create(completionOptions);
 
-      // Check if response is valid
-      if (!result) {
-        throw new Error('Empty response from Gemini API');
-      }
+    const combinedContent = safelyExtractContent(combinedResponse, 'Failed to generate analysis.');
+    const cleanedJSON = extractJsonFromContent(combinedContent);
 
-      // Extract text from response
-      const text = (result as { text?: string }).text;
-      if (!text) {
-        throw new Error('Empty text content from Gemini API');
-      }
-
-      // Parse the JSON response
-      const cleanedJSON = extractJsonFromContent(text) as { claims?: string; report?: string; slant?: string } | null;
-
-      if (!cleanedJSON) {
-        throw new Error('Failed to parse combined analysis response');
-      }
-
-      // Return the structured analysis results
-      return {
-        claims: cleanedJSON.claims || '',
-        report: cleanedJSON.report || '',
-        slant: cleanedJSON.slant || '',
-      };
-    } catch (error) {
-      // Handle errors with useful information
-      let errorMessage = 'Unknown error during Gemini analysis';
-
-      if (error instanceof Error) {
-        errorMessage = `Gemini API error: ${error.message}`;
-      }
-
-      logger.error(errorMessage);
-      throw new Error(errorMessage);
+    if (!cleanedJSON) {
+      throw new Error('Failed to parse combined analysis response');
     }
+
+    return {
+      claims: cleanedJSON.claims || '',
+      report: cleanedJSON.report || '',
+      slant: cleanedJSON.slant || '',
+    };
   } catch (error) {
     // Handle errors with useful information
-    let errorMessage = 'Unknown error during Gemini analysis';
+    let errorMessage = 'Unknown error during LLM analysis';
 
     if (error instanceof Error) {
-      errorMessage = `Gemini API error: ${error.message}`;
+      errorMessage = `LLM error: ${error.message}`;
     }
 
     logger.error(errorMessage);

@@ -14,12 +14,10 @@ const config = {
   },
   get ai() {
     return {
-      // Gemini is the primary provider, OpenAI the fallback
-      analysisLlmProvider: process.env.ANALYSIS_LLM_PROVIDER || 'gemini',
-      geminiApiKey: process.env.GEMINI_API_KEY || '',
-      geminiModelName: process.env.GEMINI_MODEL_NAME || 'gemini-1.5-pro-preview-0514',
-      openaiApiKey: process.env.OPENAI_API_KEY || '',
-      modelName: process.env.LLM_MODEL_NAME || 'gpt-4o',
+      // OpenAI by default; any OpenAI-compatible API (OpenRouter, Gemini, Anthropic, Ollama, ...) via OPENAI_BASE_URL
+      apiKey: process.env.OPENAI_API_KEY || '',
+      baseUrl: process.env.OPENAI_BASE_URL || '',
+      model: process.env.LLM_MODEL_NAME || 'gpt-6.1-sol',
     };
   },
   get turnstileSecretKey() {
