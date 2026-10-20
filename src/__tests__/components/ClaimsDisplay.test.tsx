@@ -1,24 +1,8 @@
 import React from 'react';
 import { screen } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import ClaimsDisplay from '@/components/ClaimsDisplay';
 import { renderWithI18n } from '../utils/test-utils';
-
-// Mock the accordion components from our UI library
-vi.mock('@/components/ui/accordion', () => ({
-    Accordion: ({ children, ...props }: React.PropsWithChildren) => (
-        <div data-testid="mock-accordion" {...props}>{children}</div>
-    ),
-    AccordionContent: ({ children, ...props }: React.PropsWithChildren) => (
-        <div data-testid="mock-accordion-content" {...props}>{children}</div>
-    ),
-    AccordionItem: ({ children, value, ...props }: React.PropsWithChildren<{ value: string }>) => (
-        <div data-testid={`mock-accordion-item-${value}`} {...props}>{children}</div>
-    ),
-    AccordionTrigger: ({ children, ...props }: React.PropsWithChildren) => (
-        <button data-testid="mock-accordion-trigger" {...props}>{children}</button>
-    ),
-}));
 
 describe('ClaimsDisplay Component', () => {
     const mockClaims = [
@@ -47,6 +31,14 @@ describe('ClaimsDisplay Component', () => {
         expect(screen.getByText('Inflation has reached a 40-year high')).toBeInTheDocument();
         expect(screen.getByText('Public Health')).toBeInTheDocument();
         expect(screen.getByText('COVID-19 cases are declining nationwide')).toBeInTheDocument();
+    });
+
+    it('keeps the quote and significance in the collapsed details of each claim', () => {
+        renderWithI18n(<ClaimsDisplay claims={mockClaims} />);
+
+        const quote = screen.getByText(mockClaims[0].quote);
+        expect(quote.closest('details')).not.toHaveAttribute('open');
+        expect(screen.getByText(mockClaims[0].significance)).toBeInTheDocument();
     });
 
     it('handles empty claims array gracefully', () => {

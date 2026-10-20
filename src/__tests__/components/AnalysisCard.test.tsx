@@ -124,11 +124,9 @@ describe('AnalysisCard Component', () => {
         // Should show the skeleton with status
         expect(screen.getByTestId('analysis-only-skeleton')).toHaveTextContent('Skeleton: Fetching');
 
-        // Should show heading
-        expect(screen.getByText('Analysis Results')).toBeInTheDocument();
-
-        // Should show the article title in the ArticleCard
-        expect(screen.getByText('Test Article')).toBeInTheDocument();
+        // The article is the page heading while the analysis runs
+        expect(screen.getByRole('heading', { level: 1, name: 'Test Article' })).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /Read the original/ })).toHaveAttribute('href', 'https://example.com/article');
     });
 
     it('renders complete state with article preview and analysis data', () => {
@@ -141,8 +139,9 @@ describe('AnalysisCard Component', () => {
             />
         );
 
-        // Check article data is rendered in ArticleCard
-        expect(screen.getByText('Test Article')).toBeInTheDocument();
+        // Check article data is rendered in the header
+        expect(screen.getByRole('heading', { level: 1, name: 'Test Article' })).toBeInTheDocument();
+        expect(screen.getByText('example.com')).toBeInTheDocument();
         expect(screen.getByText('Test Author')).toBeInTheDocument();
 
         // Check analysis components are rendered
@@ -190,8 +189,8 @@ describe('AnalysisCard Component', () => {
         const image = screen.getByTestId('next-image');
         expect(image).toBeInTheDocument();
 
-        // Test error handling (image not available)
+        // A broken image is dropped rather than replaced by a placeholder
         fireEvent.error(image);
-        expect(screen.getByText('Image unavailable')).toBeInTheDocument();
+        expect(screen.queryByTestId('next-image')).not.toBeInTheDocument();
     });
 }); 

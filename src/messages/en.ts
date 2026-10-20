@@ -75,6 +75,10 @@ const messages = {
         timedOut: 'This analysis took too long and was stopped. Please submit the article again.',
         analysisFailed: 'This analysis could not be completed. Please submit the article again.',
         contentUnavailable: "We couldn't get the full text of this article. Paywalled articles can only be analyzed once a complete archived copy exists, so please try again later.",
+        readOriginal: 'Read the original',
+        opensInNewTab: '(opens in a new tab)',
+        flagged: '{count, plural, =0 {None of the five dimensions raised concerns.} one {# of 5 dimensions raised concerns.} other {# of 5 dimensions raised concerns.}}',
+        dimensionsIntro: 'Each dimension is rated on its own. The quotes are taken word for word from the article.',
     },
     // Status Messages
     Status: {
@@ -168,6 +172,8 @@ const messages = {
     ClaimsDisplay: {
         title: 'Factual Claims',
         noClaims: 'No factual claims were identified in this article.',
+        intro: 'The checkable statements of fact the article relies on. Open one to see the passage and why it matters.',
+        inArticle: 'In the article',
         source: 'Source:',
         significance: 'Significance:',
     },
@@ -176,8 +182,9 @@ const messages = {
         noFindings: 'No specific findings for this dimension.',
         observation: 'Observation',
         explanation: 'Explanation',
-        evidence: 'Evidence',
+        evidence: 'Evidence from the article',
         omission: 'Nothing to quote: this is about something the article leaves out.',
+        omissionLabel: 'Left out of the article',
         balanced: 'Balanced',
         caution: 'Caution',
         biased: 'Biased',
