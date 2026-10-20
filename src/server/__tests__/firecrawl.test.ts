@@ -12,7 +12,7 @@ const BODY = 'This is test content about the committee and its findings. '.repea
 async function mockScrape(response: unknown) {
   const mockFirecrawl = { scrape: vi.fn().mockResolvedValue(response) };
   const FirecrawlMock = await import('@mendable/firecrawl-js');
-  vi.mocked(FirecrawlMock.default).mockImplementation(() => mockFirecrawl as any);
+  vi.mocked(FirecrawlMock.default).mockImplementation(function () { return mockFirecrawl as any; });
   return mockFirecrawl;
 }
 
@@ -38,9 +38,10 @@ vi.mock('../logger', () => ({
 // Mock the Firecrawl module
 vi.mock('@mendable/firecrawl-js', () => {
   return {
-    default: vi.fn().mockImplementation(() => ({
-      scrape: vi.fn(),
-    })),
+    // A regular function, not an arrow: the client is created with `new`
+    default: vi.fn().mockImplementation(function () {
+      return { scrape: vi.fn() };
+    }),
   };
 });
 
@@ -87,7 +88,7 @@ describe('firecrawlClient', () => {
 
       // Mock the Firecrawl constructor
       const FirecrawlMock = await import('@mendable/firecrawl-js');
-      vi.mocked(FirecrawlMock.default).mockImplementation(() => mockFirecrawl as any);
+      vi.mocked(FirecrawlMock.default).mockImplementation(function () { return mockFirecrawl as any; });
 
       const result = await fetchContentFromFirecrawl('https://archive.is/test');
 
@@ -122,7 +123,7 @@ describe('firecrawlClient', () => {
       };
 
       const FirecrawlMock = await import('@mendable/firecrawl-js');
-      vi.mocked(FirecrawlMock.default).mockImplementation(() => mockFirecrawl as any);
+      vi.mocked(FirecrawlMock.default).mockImplementation(function () { return mockFirecrawl as any; });
 
       const result = await fetchContentFromFirecrawl('https://example.com/article');
 
@@ -162,7 +163,7 @@ describe('firecrawlClient', () => {
       };
 
       const FirecrawlMock = await import('@mendable/firecrawl-js');
-      vi.mocked(FirecrawlMock.default).mockImplementation(() => mockFirecrawl as any);
+      vi.mocked(FirecrawlMock.default).mockImplementation(function () { return mockFirecrawl as any; });
 
       await expect(fetchContentFromFirecrawl('https://example.com')).rejects.toThrow(
         'Invalid response from Firecrawl API: No content found'
