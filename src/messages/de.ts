@@ -75,6 +75,10 @@ const messages = {
         timedOut: 'Diese Analyse hat zu lange gedauert und wurde abgebrochen. Bitte reichen Sie den Artikel erneut ein.',
         analysisFailed: 'Diese Analyse konnte nicht abgeschlossen werden. Bitte reichen Sie den Artikel erneut ein.',
         contentUnavailable: 'Wir konnten den vollständigen Text dieses Artikels nicht abrufen. Artikel hinter einer Paywall lassen sich erst analysieren, wenn eine vollständige archivierte Kopie existiert. Bitte versuchen Sie es später erneut.',
+        readOriginal: 'Zum Originalartikel',
+        opensInNewTab: '(öffnet in neuem Tab)',
+        flagged: '{count, plural, =0 {Keine der fünf Dimensionen ist auffällig.} one {# von 5 Dimensionen ist auffällig.} other {# von 5 Dimensionen sind auffällig.}}',
+        dimensionsIntro: 'Jede Dimension wird einzeln bewertet. Die Zitate stammen wörtlich aus dem Artikel.',
     },
     // Status Messages
     Status: {
@@ -168,6 +172,8 @@ const messages = {
     ClaimsDisplay: {
         title: 'Faktische Behauptungen',
         noClaims: 'In diesem Artikel wurden keine faktischen Behauptungen identifiziert.',
+        intro: 'Die überprüfbaren Tatsachenbehauptungen, auf die sich der Artikel stützt. Öffnen Sie eine, um die Textstelle und ihre Bedeutung zu sehen.',
+        inArticle: 'Im Artikel',
         source: 'Quelle:',
         significance: 'Bedeutung:',
     },
@@ -176,8 +182,9 @@ const messages = {
         noFindings: 'Keine spezifischen Ergebnisse für diese Dimension.',
         observation: 'Beobachtung',
         explanation: 'Erklärung',
-        evidence: 'Nachweis',
+        evidence: 'Beleg aus dem Artikel',
         omission: 'Kein Zitat: Es geht um etwas, das der Artikel auslässt.',
+        omissionLabel: 'Fehlt im Artikel',
         balanced: 'Ausgewogen',
         caution: 'Vorsicht',
         biased: 'Voreingenommen',

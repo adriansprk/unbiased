@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useLocale } from "next-intl";
-import { Copy, Check } from "lucide-react";
+import { Link2, Check } from "lucide-react";
 import { useToast } from "@/components/ui/toast-manager";
 import logger from "@/utils/logger";
 
@@ -17,62 +17,35 @@ const ShareableLink: React.FC<ShareableLinkProps> = ({ jobId }) => {
     const { showToast } = useToast();
     const [copied, setCopied] = useState(false);
 
-    // Generate the shareable URL with the correct path format to avoid locale duplication
-    const baseUrl = "https://unbiased.adriancares.com";
-    const shareableUrl = `${baseUrl}/${locale}/analysis/${jobId}`;
+    const shareableUrl = `https://unbiased.adriancares.com/${locale}/analysis/${jobId}`;
 
-    // Handle copy button click
     const handleCopyClick = async () => {
         try {
             await navigator.clipboard.writeText(shareableUrl);
             setCopied(true);
-            showToast(t("copied"), { type: "success", duration: 2000 });
+            showToast(t("linkCopiedToClipboard"), { type: "success", duration: 2000 });
         } catch (error) {
             logger.error("Failed to copy link:", error);
             showToast(t("failedToCopyLink"), { type: "error", duration: 3000 });
         }
     };
 
-    // Reset copied state after 2 seconds
     useEffect(() => {
-        if (copied) {
-            const timer = setTimeout(() => {
-                setCopied(false);
-            }, 2000);
-            return () => clearTimeout(timer);
-        }
+        if (!copied) return;
+        const timer = setTimeout(() => setCopied(false), 2000);
+        return () => clearTimeout(timer);
     }, [copied]);
 
     return (
-        <div className="bg-card p-4 rounded-lg border border-border mt-4">
-            <h3 className="text-lg font-semibold mb-2">
-                {t("shareThisAnalysis")}
-            </h3>
-
-            <div className="relative">
-                <div className="flex-grow bg-background rounded-md border border-border p-2 text-sm pr-24 truncate overflow-hidden">
-                    {shareableUrl}
-                </div>
-                <button
-                    onClick={handleCopyClick}
-                    className="absolute right-1 top-1 bottom-1 flex items-center justify-center gap-1.5 rounded-md px-3 border border-border bg-background hover:bg-muted transition-colors"
-                    aria-label={copied ? t("copied") : t("copy")}
-                >
-                    {copied ? (
-                        <>
-                            <Check className="h-4 w-4" />
-                            <span className="text-sm">{t("copied")}</span>
-                        </>
-                    ) : (
-                        <>
-                            <Copy className="h-4 w-4" />
-                            <span className="text-sm">{t("copy")}</span>
-                        </>
-                    )}
-                </button>
-            </div>
-        </div>
+        <button
+            type="button"
+            onClick={handleCopyClick}
+            className="inline-flex shrink-0 items-center gap-2 rounded-full border bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+            {copied ? <Check className="h-4 w-4" aria-hidden /> : <Link2 className="h-4 w-4" aria-hidden />}
+            <span aria-live="polite">{copied ? t("copied") : t("copyLink")}</span>
+        </button>
     );
 };
 
-export default ShareableLink; 
+export default ShareableLink;

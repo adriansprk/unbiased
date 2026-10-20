@@ -25,19 +25,10 @@ describe('ShareableLink Component', () => {
         vi.clearAllMocks();
     });
 
-    it('renders the component with correct URL', () => {
+    it('renders a copy link button', () => {
         renderWithI18n(<ShareableLink jobId={mockJobId} />);
 
-        // Test that the component renders
-        expect(screen.getByText('Share this analysis')).toBeInTheDocument();
-
-        // Test that it displays the correct URL format
-        const expectedUrl = `https://unbiased.adriancares.com/en/analysis/${mockJobId}`;
-        expect(screen.getByText(expectedUrl)).toBeInTheDocument();
-
-        // Test that the copy button is present with text
-        expect(screen.getByRole('button', { name: /copy/i })).toBeInTheDocument();
-        expect(screen.getByText('Copy')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Copy Link' })).toBeInTheDocument();
     });
 
     it('changes to Copied state when button is clicked', async () => {
@@ -77,6 +68,6 @@ describe('ShareableLink Component', () => {
         });
 
         // The component should not crash
-        expect(screen.getByText('Share this analysis')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Copy Link' })).toBeInTheDocument();
     });
 }); 

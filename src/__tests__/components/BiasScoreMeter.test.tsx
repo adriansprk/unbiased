@@ -2,6 +2,7 @@ import React from 'react';
 import { screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import BiasScoreMeter from '@/components/BiasScoreMeter';
+import { analysis } from '../data/analysis';
 import { renderWithI18n } from '../utils/test-utils';
 
 describe('BiasScoreMeter Component', () => {
@@ -10,63 +11,38 @@ describe('BiasScoreMeter Component', () => {
         articleType: { type: 'opinion' as const, rationale: 'A column arguing for the plan.' },
     };
 
-    it('shows the article type and, for opinion pieces, how they are judged', () => {
+    it('shows the article type with its rationale and, for opinion pieces, how they are judged', () => {
         renderWithI18n(<BiasScoreMeter {...defaultProps} />);
 
-        expect(screen.getByText('Bias Analysis')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Bias Analysis' })).toBeInTheDocument();
         expect(screen.getByText('Opinion')).toBeInTheDocument();
+        expect(screen.getByText('A column arguing for the plan.')).toBeInTheDocument();
         expect(screen.getByText(/judged on whether they treat facts/)).toBeInTheDocument();
     });
 
-    it('shows no type badge for results from before article types', () => {
+    it('shows no type for results from before article types', () => {
         renderWithI18n(<BiasScoreMeter biasLevel="Low" articleType={null} />);
 
         expect(screen.queryByText('Opinion')).not.toBeInTheDocument();
         expect(screen.queryByText(/judged on whether/)).not.toBeInTheDocument();
     });
 
-    it('shows correct colors for Low bias level', () => {
-        const props = {
-            ...defaultProps,
-            biasLevel: 'Low' as const,
-        };
+    it.each([
+        ['Low', '.bg-emerald-500', 1],
+        ['Moderate', '.bg-amber-500', 2],
+        ['High', '.bg-rose-500', 3],
+    ] as const)('fills the scale up to %s', (biasLevel, bar, filled) => {
+        const { container } = renderWithI18n(<BiasScoreMeter {...defaultProps} biasLevel={biasLevel} />);
 
-        const { container } = renderWithI18n(<BiasScoreMeter {...props} />);
-
-        // Check for Low label in the scale
-        expect(screen.getByText('Low')).toBeInTheDocument();
-
-        // Check for the green progress bar
-        const progressBar = container.querySelector('.bg-green-500');
-        expect(progressBar).toBeInTheDocument();
+        expect(container.querySelectorAll(bar)).toHaveLength(filled);
+        expect(screen.getAllByText(biasLevel)).toHaveLength(2); // the verdict and its place on the scale
     });
 
-    it('shows correct colors for High bias level', () => {
-        const props = {
-            ...defaultProps,
-            biasLevel: 'High' as const,
-        };
+    it('lists the five ratings, linked to their sections, and counts the flagged ones', () => {
+        renderWithI18n(<BiasScoreMeter {...defaultProps} dimensions={analysis.dimensions} />);
 
-        const { container } = renderWithI18n(<BiasScoreMeter {...props} />);
-
-        // Check for High label in the scale
-        expect(screen.getByText('High')).toBeInTheDocument();
-
-        // Check for the red progress bar
-        const progressBar = container.querySelector('.bg-red-500');
-        expect(progressBar).toBeInTheDocument();
+        expect(screen.getByText('3 of 5 dimensions raised concerns.')).toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /Source Selection/ })).toHaveAttribute('href', '#dimension-sources');
+        expect(screen.getAllByText('Caution')).toHaveLength(3);
     });
-
-    it('displays the progress meter correctly', () => {
-        const { container } = renderWithI18n(<BiasScoreMeter {...defaultProps} />);
-
-        // Check for the Moderate bias level yellow meter
-        const progressBar = container.querySelector('.bg-yellow-500');
-        expect(progressBar).toBeInTheDocument();
-
-        // Check for the scale labels
-        expect(screen.getByText('Low')).toBeInTheDocument();
-        expect(screen.getByText('Moderate')).toBeInTheDocument();
-        expect(screen.getByText('High')).toBeInTheDocument();
-    });
-}); 
+});
