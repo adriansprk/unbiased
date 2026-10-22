@@ -8,7 +8,9 @@ import { analysis, ARTICLE_TEXT, ARTICLE_TITLE } from '@/__tests__/data/analysis
 const mockParse = vi.hoisted(() => vi.fn());
 
 vi.mock('openai', () => ({
-    default: vi.fn().mockImplementation(() => ({ beta: { chat: { completions: { parse: mockParse } } } })),
+    default: vi.fn().mockImplementation(function () {
+        return { beta: { chat: { completions: { parse: mockParse } } } };
+    }),
 }));
 
 vi.mock('../config', () => ({
